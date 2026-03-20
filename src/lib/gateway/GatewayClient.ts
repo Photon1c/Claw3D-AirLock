@@ -101,13 +101,12 @@ const parseConnectFailedCloseReason = (
 const DEFAULT_UPSTREAM_GATEWAY_URL =
   process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:18789";
 
-const normalizeLocalGatewayDefaults = (value: unknown): StudioGatewaySettings | null => {
+const normalizeLocalGatewayDefaults = (value: unknown): StudioGatewaySettingsPublic | null => {
   if (!value || typeof value !== "object") return null;
-  const raw = value as { url?: unknown; token?: unknown };
+  const raw = value as { url?: unknown; tokenConfigured?: unknown };
   const url = typeof raw.url === "string" ? raw.url.trim() : "";
-  const token = typeof raw.token === "string" ? raw.token.trim() : "";
-  if (!url || !token) return null;
-  return { url, token };
+  if (!url) return null;
+  return { url, tokenConfigured: Boolean(raw.tokenConfigured) };
 };
 
 type StatusHandler = (status: GatewayStatus) => void;
@@ -432,8 +431,6 @@ export type GatewayConnectionState = {
   client: GatewayClient;
   status: GatewayStatus;
   gatewayUrl: string;
-  token: string;
-  localGatewayDefaults: StudioGatewaySettings | null;
   error: string | null;
   connectPromptReady: boolean;
   shouldPromptForConnect: boolean;
@@ -441,7 +438,6 @@ export type GatewayConnectionState = {
   disconnect: () => void;
   useLocalGatewayDefaults: () => void;
   setGatewayUrl: (value: string) => void;
-  setToken: (value: string) => void;
   clearError: () => void;
 };
 
@@ -518,14 +514,13 @@ export const useGatewayConnection = (
   const [client] = useState(() => new GatewayClient());
   const didAutoConnect = useRef(false);
   const hasConnectedOnceRef = useRef(false);
-  const loadedGatewaySettings = useRef<{ gatewayUrl: string; token: string } | null>(null);
+  const loadedGatewaySettings = useRef<{ gatewayUrl: string } | null>(null);
   const retryAttemptRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasManualDisconnectRef = useRef(false);
 
   const [gatewayUrl, setGatewayUrl] = useState(DEFAULT_UPSTREAM_GATEWAY_URL);
-  const [token, setToken] = useState("");
-  const [localGatewayDefaults, setLocalGatewayDefaults] = useState<StudioGatewaySettings | null>(
+  const [localGatewayDefaults, setLocalGatewayDefaults] = useState<StudioGatewaySettingsPublic | null>(
     null
   );
   const [status, setStatus] = useState<GatewayStatus>("disconnected");
@@ -549,16 +544,10 @@ export const useGatewayConnection = (
         if (cancelled) return;
         setLocalGatewayDefaults(normalizeLocalGatewayDefaults(envelope.localGatewayDefaults));
         const nextGatewayUrl = gateway?.url?.trim() ? gateway.url : DEFAULT_UPSTREAM_GATEWAY_URL;
-        const nextToken =
-          gateway && "token" in gateway && typeof gateway.token === "string"
-            ? gateway.token
-            : "";
         loadedGatewaySettings.current = {
           gatewayUrl: nextGatewayUrl.trim(),
-          token: nextToken,
         };
         setGatewayUrl(nextGatewayUrl);
-        setToken(nextToken);
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : "Failed to load gateway settings.";
@@ -569,7 +558,6 @@ export const useGatewayConnection = (
           if (!loadedGatewaySettings.current) {
             loadedGatewaySettings.current = {
               gatewayUrl: DEFAULT_UPSTREAM_GATEWAY_URL.trim(),
-              token: "",
             };
           }
           setSettingsLoaded(true);
@@ -612,7 +600,7 @@ export const useGatewayConnection = (
       await settingsCoordinator.flushPending();
       await client.connect({
         gatewayUrl: resolveStudioProxyGatewayUrl(),
-        token,
+        token: undefined,
         authScopeKey: gatewayUrl,
         clientName: "openclaw-control-ui",
       });
@@ -625,7 +613,7 @@ export const useGatewayConnection = (
       setConnectErrorCode(err instanceof GatewayResponseError ? err.code : null);
       setError(formatGatewayError(err));
     }
-  }, [client, gatewayUrl, settingsCoordinator, token]);
+  }, [client, gatewayUrl, settingsCoordinator]);
 
   useEffect(() => {
     if (didAutoConnect.current) return;
@@ -675,26 +663,24 @@ export const useGatewayConnection = (
     const baseline = loadedGatewaySettings.current;
     if (!baseline) return;
     const nextGatewayUrl = gatewayUrl.trim();
-    if (nextGatewayUrl === baseline.gatewayUrl && token === baseline.token) {
+    if (nextGatewayUrl === baseline.gatewayUrl) {
       return;
     }
     settingsCoordinator.schedulePatch(
       {
         gateway: {
           url: nextGatewayUrl,
-          token,
         },
       },
       400
     );
-  }, [gatewayUrl, settingsCoordinator, settingsLoaded, token]);
+  }, [gatewayUrl, settingsCoordinator, settingsLoaded]);
 
   const useLocalGatewayDefaults = useCallback(() => {
     if (!localGatewayDefaults) {
       return;
     }
     setGatewayUrl(localGatewayDefaults.url);
-    setToken(localGatewayDefaults.token);
     setError(null);
     setConnectErrorCode(null);
   }, [localGatewayDefaults]);
@@ -716,14 +702,12 @@ export const useGatewayConnection = (
   const shouldPromptForConnect =
     settingsLoaded &&
     status !== "connected" &&
-    (!gatewayUrl.trim() || !token.trim() || wasManualDisconnectRef.current || Boolean(error));
+    (!gatewayUrl.trim() || wasManualDisconnectRef.current || Boolean(error));
 
   return {
     client,
     status,
     gatewayUrl,
-    token,
-    localGatewayDefaults,
     error,
     connectPromptReady,
     shouldPromptForConnect,
@@ -731,7 +715,6 @@ export const useGatewayConnection = (
     disconnect,
     useLocalGatewayDefaults,
     setGatewayUrl,
-    setToken,
     clearError,
   };
 };

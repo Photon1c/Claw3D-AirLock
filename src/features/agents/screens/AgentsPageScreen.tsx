@@ -221,14 +221,12 @@ const AgentsPageScreen = () => {
     connectPromptReady,
     shouldPromptForConnect,
     gatewayUrl,
-    token,
     localGatewayDefaults,
     error: gatewayError,
     connect,
     disconnect,
     useLocalGatewayDefaults,
     setGatewayUrl,
-    setToken,
   } = useGatewayConnection(settingsCoordinator);
   const {
     loaded: voiceRepliesLoaded,
@@ -1390,13 +1388,11 @@ const AgentsPageScreen = () => {
             ) : (
               <GatewayConnectScreen
                 gatewayUrl={gatewayUrl}
-                token={token}
                 localGatewayDefaults={localGatewayDefaults}
                 status={status}
                 error={gatewayError}
                 showApprovalHint={didAttemptGatewayConnect}
                 onGatewayUrlChange={setGatewayUrl}
-                onTokenChange={setToken}
                 onUseLocalDefaults={useLocalGatewayDefaults}
                 onConnect={() => void connect()}
               />

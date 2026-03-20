@@ -12,6 +12,23 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-require-imports": "off",
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    excludedFiles: ["src/app/api/**", "src/lib/studio/settings-store.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "process",
+          message:
+            "Do not access process.env directly in client code. " +
+            "Use NEXT_PUBLIC_ prefixed variables for client-safe values, " +
+            "or move the logic to a Next.js API route. " +
+            "See AGENTS.md for the environment variable policy.",
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

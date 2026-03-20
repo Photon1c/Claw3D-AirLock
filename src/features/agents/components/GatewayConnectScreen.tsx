@@ -1,18 +1,16 @@
 import { useMemo, useState } from "react";
-import { Check, Copy, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Check, Copy, Loader2 } from "lucide-react";
 import type { GatewayStatus } from "@/lib/gateway/GatewayClient";
 import { isLocalGatewayUrl } from "@/lib/gateway/local-gateway";
-import type { StudioGatewaySettings } from "@/lib/studio/settings";
+import type { StudioGatewaySettingsPublic } from "@/lib/studio/settings";
 
 type GatewayConnectScreenProps = {
   gatewayUrl: string;
-  token: string;
-  localGatewayDefaults: StudioGatewaySettings | null;
+  localGatewayDefaults: StudioGatewaySettingsPublic | null;
   status: GatewayStatus;
   error: string | null;
   showApprovalHint: boolean;
   onGatewayUrlChange: (value: string) => void;
-  onTokenChange: (value: string) => void;
   onUseLocalDefaults: () => void;
   onConnect: () => void;
 };
@@ -28,18 +26,15 @@ const resolveLocalGatewayPort = (gatewayUrl: string): number => {
 
 export const GatewayConnectScreen = ({
   gatewayUrl,
-  token,
   localGatewayDefaults,
   status,
   error,
   showApprovalHint,
   onGatewayUrlChange,
-  onTokenChange,
   onUseLocalDefaults,
   onConnect,
 }: GatewayConnectScreenProps) => {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
-  const [showToken, setShowToken] = useState(false);
   const isLocal = useMemo(() => isLocalGatewayUrl(gatewayUrl), [gatewayUrl]);
   const localPort = useMemo(() => resolveLocalGatewayPort(gatewayUrl), [gatewayUrl]);
   const localGatewayCommand = useMemo(
@@ -131,31 +126,9 @@ export const GatewayConnectScreen = ({
         </p>
       </div>
 
-      <label className="flex flex-col gap-1 text-[11px] font-medium text-white/90">
-        Upstream token
-        <div className="relative">
-          <input
-            className="ui-input h-10 w-full rounded-md px-4 pr-10 font-sans text-sm text-foreground outline-none"
-            type={showToken ? "text" : "password"}
-            value={token}
-            onChange={(event) => onTokenChange(event.target.value)}
-            placeholder="gateway token"
-            spellCheck={false}
-          />
-          <button
-            type="button"
-            className="ui-btn-icon absolute inset-y-0 right-1 my-auto h-8 w-8 border-transparent bg-transparent text-white/70 hover:bg-transparent hover:text-white"
-            aria-label={showToken ? "Hide token" : "Show token"}
-            onClick={() => setShowToken((prev) => !prev)}
-          >
-            {showToken ? (
-              <EyeOff className="h-4 w-4 transition-transform duration-150" />
-            ) : (
-              <Eye className="h-4 w-4 transition-transform duration-150" />
-            )}
-          </button>
-        </div>
-      </label>
+      <p className="text-xs text-white/60">
+        Authentication is handled automatically by the server. No token entry required.
+      </p>
 
       <button
         type="button"
@@ -207,7 +180,7 @@ export const GatewayConnectScreen = ({
           <p className="font-mono text-[10px] font-medium tracking-[0.06em] text-white/80">
             Remote gateway (recommended)
           </p>
-          <p className="mt-2 text-sm text-white/90">Default: enter your URL and token to connect.</p>
+          <p className="mt-2 text-sm text-white/90">Enter your gateway URL to connect.</p>
         </div>
         {remoteForm}
       </div>
@@ -227,7 +200,7 @@ export const GatewayConnectScreen = ({
             <div className="ui-input rounded-md px-3 py-3">
               <div className="space-y-2">
                 <p className="text-xs text-white/80">
-                  Use token from <span className="font-mono">~/.openclaw/openclaw.json</span>.
+                  Token from <span className="font-mono">~/.openclaw/openclaw.json</span> is used automatically by the server.
                 </p>
                 <p className="font-mono text-[11px] text-white">
                   {localGatewayDefaults.url}

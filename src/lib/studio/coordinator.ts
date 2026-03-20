@@ -270,7 +270,14 @@ export class StudioSettingsCoordinator {
     options?: StudioSettingsLoadOptions,
   ): Promise<StudioSettingsPublic | null> {
     const result = await this.loadSettingsEnvelope(options);
-    return result.settings ?? null;
+    const settings = result.settings;
+    if (!settings) return null;
+    const { gateway, ...rest } = settings as StudioSettingsPublic & { gateway?: { url: string; token?: string } };
+    if (gateway && "token" in gateway) {
+      const { token: _, ...sanitizedGateway } = gateway;
+      return { ...rest, gateway: { ...sanitizedGateway, tokenConfigured: Boolean(_) } } as StudioSettingsPublic;
+    }
+    return settings;
   }
 
   async loadSettingsEnvelope(
