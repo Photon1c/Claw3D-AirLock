@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { resolveStateDir } from "@/lib/clawdbot/paths";
+import {
+  isSandboxMode,
+  resolveSandboxDir,
+  resolveStateDir,
+} from "@/lib/clawdbot/paths";
 import { createEmptyOfficeMap, normalizeOfficeMap, type OfficeMap } from "@/lib/office/schema";
 
 export type OfficeRecord = {
@@ -49,9 +53,11 @@ const ensureDirectory = (dirPath: string) => {
   }
 };
 
-const resolveStorePath = () => {
-  const stateDir = resolveStateDir();
-  const dir = path.join(stateDir, STORE_DIR);
+const resolveStorePath = (env: NodeJS.ProcessEnv = process.env) => {
+  const base = isSandboxMode(env)
+    ? resolveSandboxDir()
+    : resolveStateDir(env);
+  const dir = path.join(base, STORE_DIR);
   ensureDirectory(dir);
   return path.join(dir, STORE_FILE);
 };
@@ -112,8 +118,8 @@ const normalizeStore = (value: unknown): OfficeStoreShape => {
   };
 };
 
-const readStore = (): OfficeStoreShape => {
-  const storePath = resolveStorePath();
+const readStore = (env: NodeJS.ProcessEnv = process.env): OfficeStoreShape => {
+  const storePath = resolveStorePath(env);
   if (!fs.existsSync(storePath)) {
     return defaultStore();
   }
@@ -121,30 +127,43 @@ const readStore = (): OfficeStoreShape => {
   return normalizeStore(JSON.parse(raw));
 };
 
-const writeStore = (store: OfficeStoreShape) => {
-  const storePath = resolveStorePath();
+const writeStore = (store: OfficeStoreShape, env: NodeJS.ProcessEnv = process.env) => {
+  const storePath = resolveStorePath(env);
   fs.writeFileSync(storePath, JSON.stringify(store, null, 2), "utf8");
 };
 
-export const listOfficesForWorkspace = (workspaceId: string) => {
-  const store = readStore();
+export const listOfficesForWorkspace = (
+  workspaceId: string,
+  env: NodeJS.ProcessEnv = process.env
+) => {
+  const store = readStore(env);
   return store.offices.filter((entry) => entry.workspaceId === workspaceId);
 };
 
-export const listOfficeVersions = (workspaceId: string, officeId: string) => {
-  const store = readStore();
+export const listOfficeVersions = (
+  workspaceId: string,
+  officeId: string,
+  env: NodeJS.ProcessEnv = process.env
+) => {
+  const store = readStore(env);
   return store.officeVersions
     .filter((entry) => entry.workspaceId === workspaceId && entry.officeId === officeId)
     .sort((left, right) => right.versionNumber - left.versionNumber);
 };
 
-export const getPublishedOffice = (workspaceId: string) => {
-  const store = readStore();
+export const getPublishedOffice = (
+  workspaceId: string,
+  env: NodeJS.ProcessEnv = process.env
+) => {
+  const store = readStore(env);
   return store.published.find((entry) => entry.workspaceId === workspaceId) ?? null;
 };
 
-export const getPublishedOfficeMap = (workspaceId: string): OfficeMap | null => {
-  const store = readStore();
+export const getPublishedOfficeMap = (
+  workspaceId: string,
+  env: NodeJS.ProcessEnv = process.env
+): OfficeMap | null => {
+  const store = readStore(env);
   const published = store.published.find((entry) => entry.workspaceId === workspaceId);
   if (!published) return null;
   const version = store.officeVersions.find(
@@ -163,12 +182,15 @@ export const getPublishedOfficeMap = (workspaceId: string): OfficeMap | null => 
   return normalizeOfficeMap(version.mapJson, fallback);
 };
 
-export const upsertOffice = (params: {
-  workspaceId: string;
-  officeId: string;
-  name: string;
-}) => {
-  const store = readStore();
+export const upsertOffice = (
+  params: {
+    workspaceId: string;
+    officeId: string;
+    name: string;
+  },
+  env: NodeJS.ProcessEnv = process.env
+) => {
+  const store = readStore(env);
   const now = new Date().toISOString();
   const existing = store.offices.find(
     (entry) => entry.workspaceId === params.workspaceId && entry.id === params.officeId
@@ -176,7 +198,7 @@ export const upsertOffice = (params: {
   if (existing) {
     existing.name = params.name;
     existing.updatedAt = now;
-    writeStore(store);
+    writeStore(store, env);
     return existing;
   }
   const created: OfficeRecord = {
@@ -187,19 +209,22 @@ export const upsertOffice = (params: {
     updatedAt: now,
   };
   store.offices.push(created);
-  writeStore(store);
+  writeStore(store, env);
   return created;
 };
 
-export const saveOfficeVersion = (params: {
-  workspaceId: string;
-  officeId: string;
-  versionId: string;
-  createdBy: string;
-  notes?: string;
-  map: OfficeMap;
-}) => {
-  const store = readStore();
+export const saveOfficeVersion = (
+  params: {
+    workspaceId: string;
+    officeId: string;
+    versionId: string;
+    createdBy: string;
+    notes?: string;
+    map: OfficeMap;
+  },
+  env: NodeJS.ProcessEnv = process.env
+) => {
+  const store = readStore(env);
   const now = new Date().toISOString();
   const matching = store.officeVersions.filter(
     (entry) => entry.workspaceId === params.workspaceId && entry.officeId === params.officeId
@@ -216,17 +241,20 @@ export const saveOfficeVersion = (params: {
     notes: params.notes,
   };
   store.officeVersions.push(record);
-  writeStore(store);
+  writeStore(store, env);
   return record;
 };
 
-export const publishOfficeVersion = (params: {
-  workspaceId: string;
-  officeId: string;
-  officeVersionId: string;
-  publishedBy: string;
-}) => {
-  const store = readStore();
+export const publishOfficeVersion = (
+  params: {
+    workspaceId: string;
+    officeId: string;
+    officeVersionId: string;
+    publishedBy: string;
+  },
+  env: NodeJS.ProcessEnv = process.env
+) => {
+  const store = readStore(env);
   const match = store.officeVersions.find(
     (entry) =>
       entry.workspaceId === params.workspaceId &&
@@ -243,7 +271,7 @@ export const publishOfficeVersion = (params: {
     current.officeVersionId = params.officeVersionId;
     current.publishedBy = params.publishedBy;
     current.publishedAt = now;
-    writeStore(store);
+    writeStore(store, env);
     return current;
   }
   const created: PublishedOfficeRecord = {
@@ -254,6 +282,6 @@ export const publishOfficeVersion = (params: {
     publishedAt: now,
   };
   store.published.push(created);
-  writeStore(store);
+  writeStore(store, env);
   return created;
 };

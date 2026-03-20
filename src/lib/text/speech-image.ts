@@ -22,13 +22,11 @@ export function extractSpeechImage(
 
   const imagePath = match[1].trim();
 
-  let fullPath: string;
-  if (imagePath.startsWith("/") || imagePath.startsWith("~/")) {
-    fullPath = imagePath;
-  } else {
-    fullPath = `~/.openclaw/workspace-${agentId}/${imagePath}`;
+  if (!imagePath.startsWith("/") && !imagePath.startsWith("~/")) {
+    return { cleanText: raw, imageUrl: null };
   }
 
+  const fullPath = imagePath;
   const imageUrl = `/api/gateway/media?path=${encodeURIComponent(fullPath)}`;
 
   // Strip all backtick-wrapped segments and tidy up leftover punctuation.

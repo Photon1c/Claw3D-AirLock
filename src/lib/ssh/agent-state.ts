@@ -14,7 +14,18 @@ export type RestoreAgentStateResult = {
 const TRASH_SCRIPT = `
 set -euo pipefail
 
-python3 - "$1" <<'PY'
+state_dir="\${OPENCLAW_STATE_DIR:-}"
+if [[ -z "$state_dir" ]]; then
+  if [[ "\${AIRLOCK_SANDBOX_MODE:-}" == "1" ]] || [[ "\${CLAW3D_SANDBOX:-}" == "1" ]]; then
+    state_dir="$(mktemp -d)/claw3d_sandbox"
+  else
+    echo 'ERROR: OPENCLAW_STATE_DIR is not set and sandbox mode is disabled.' >&2
+    echo 'Set OPENCLAW_STATE_DIR explicitly or enable AIRLOCK_SANDBOX_MODE=1.' >&2
+    exit 1
+  fi
+fi
+
+python3 - "$1" "$state_dir" <<'PY'
 import datetime
 import json
 import os
@@ -25,12 +36,12 @@ import sys
 import uuid
 
 agent_id = sys.argv[1].strip()
+base = pathlib.Path(sys.argv[2].strip())
 if not agent_id:
   raise SystemExit("agentId is required.")
 if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}", agent_id):
   raise SystemExit(f"Invalid agentId: {agent_id}")
 
-base = pathlib.Path.home() / ".openclaw"
 trash_root = base / "trash" / "studio-delete-agent"
 stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 trash_dir = trash_root / f"{stamp}-{agent_id}-{uuid.uuid4()}"
@@ -56,7 +67,18 @@ PY
 const RESTORE_SCRIPT = `
 set -euo pipefail
 
-python3 - "$1" "$2" <<'PY'
+state_dir="\${OPENCLAW_STATE_DIR:-}"
+if [[ -z "$state_dir" ]]; then
+  if [[ "\${AIRLOCK_SANDBOX_MODE:-}" == "1" ]] || [[ "\${CLAW3D_SANDBOX:-}" == "1" ]]; then
+    state_dir="$(mktemp -d)/claw3d_sandbox"
+  else
+    echo 'ERROR: OPENCLAW_STATE_DIR is not set and sandbox mode is disabled.' >&2
+    echo 'Set OPENCLAW_STATE_DIR explicitly or enable AIRLOCK_SANDBOX_MODE=1.' >&2
+    exit 1
+  fi
+fi
+
+python3 - "$1" "$2" "$state_dir" <<'PY'
 import json
 import pathlib
 import re
@@ -65,6 +87,7 @@ import sys
 
 agent_id = sys.argv[1].strip()
 trash_dir_raw = sys.argv[2].strip()
+base = pathlib.Path(sys.argv[3].strip())
 
 if not agent_id:
   raise SystemExit("agentId is required.")
@@ -73,7 +96,6 @@ if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}", agent_id):
 if not trash_dir_raw:
   raise SystemExit("trashDir is required.")
 
-base = pathlib.Path.home() / ".openclaw"
 trash_dir = pathlib.Path(trash_dir_raw).expanduser()
 
 try:

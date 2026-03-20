@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 
 import {
-  sanitizeStudioGatewaySettings,
   sanitizeStudioSettings,
   type StudioSettingsPatch,
 } from "@/lib/studio/settings";
 import {
   applyStudioSettingsPatch,
-  loadLocalGatewayDefaults,
   loadStudioSettings,
 } from "@/lib/studio/settings-store";
 
@@ -19,11 +17,9 @@ const isPatch = (value: unknown): value is StudioSettingsPatch =>
 export async function GET() {
   try {
     const settings = loadStudioSettings();
-    const localGatewayDefaults = loadLocalGatewayDefaults();
     return NextResponse.json(
       {
         settings: sanitizeStudioSettings(settings),
-        localGatewayDefaults: sanitizeStudioGatewaySettings(localGatewayDefaults),
       },
       { headers: { "Cache-Control": "no-store" } }
     );

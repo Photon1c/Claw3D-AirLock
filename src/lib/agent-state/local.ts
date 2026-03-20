@@ -2,7 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { resolveStateDir } from "@/lib/clawdbot/paths";
+import {
+  isSandboxMode,
+  resolveSandboxDir,
+  resolveStateDir,
+} from "@/lib/clawdbot/paths";
 
 export type GatewayAgentStateMove = { from: string; to: string };
 
@@ -29,7 +33,10 @@ const moveIfExists = (src: string, dest: string, moves: GatewayAgentStateMove[])
   moves.push({ from: src, to: dest });
 };
 
-export const trashAgentStateLocally = (params: { agentId: string }): TrashAgentStateResult => {
+export const trashAgentStateLocally = (
+  params: { agentId: string },
+  env: NodeJS.ProcessEnv = process.env
+): TrashAgentStateResult => {
   const agentId = params.agentId.trim();
   if (!agentId) {
     throw new Error("agentId is required.");
@@ -38,7 +45,9 @@ export const trashAgentStateLocally = (params: { agentId: string }): TrashAgentS
     throw new Error(`Invalid agentId: ${agentId}`);
   }
 
-  const base = resolveStateDir();
+  const base = isSandboxMode(env)
+    ? resolveSandboxDir()
+    : resolveStateDir(env);
   const trashRoot = path.join(base, "trash", "studio-delete-agent");
   const stamp = utcStamp();
   const trashDir = path.join(trashRoot, `${stamp}-${agentId}-${randomUUID()}`);
@@ -66,10 +75,13 @@ const ensureUnderBase = (base: string, candidate: string) => {
   return { resolvedBase, resolvedCandidate };
 };
 
-export const restoreAgentStateLocally = (params: {
-  agentId: string;
-  trashDir: string;
-}): RestoreAgentStateResult => {
+export const restoreAgentStateLocally = (
+  params: {
+    agentId: string;
+    trashDir: string;
+  },
+  env: NodeJS.ProcessEnv = process.env
+): RestoreAgentStateResult => {
   const agentId = params.agentId.trim();
   const trashDirRaw = params.trashDir.trim();
   if (!agentId) {
@@ -82,7 +94,9 @@ export const restoreAgentStateLocally = (params: {
     throw new Error("trashDir is required.");
   }
 
-  const base = resolveStateDir();
+  const base = isSandboxMode(env)
+    ? resolveSandboxDir()
+    : resolveStateDir(env);
   if (!fs.existsSync(trashDirRaw)) {
     throw new Error(`trashDir does not exist: ${trashDirRaw}`);
   }

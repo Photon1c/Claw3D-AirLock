@@ -2,16 +2,13 @@ import { useMemo, useState } from "react";
 import { Check, Copy, Loader2 } from "lucide-react";
 import type { GatewayStatus } from "@/lib/gateway/GatewayClient";
 import { isLocalGatewayUrl } from "@/lib/gateway/local-gateway";
-import type { StudioGatewaySettingsPublic } from "@/lib/studio/settings";
 
 type GatewayConnectScreenProps = {
   gatewayUrl: string;
-  localGatewayDefaults: StudioGatewaySettingsPublic | null;
   status: GatewayStatus;
   error: string | null;
   showApprovalHint: boolean;
   onGatewayUrlChange: (value: string) => void;
-  onUseLocalDefaults: () => void;
   onConnect: () => void;
 };
 
@@ -26,12 +23,10 @@ const resolveLocalGatewayPort = (gatewayUrl: string): number => {
 
 export const GatewayConnectScreen = ({
   gatewayUrl,
-  localGatewayDefaults,
   status,
   error,
   showApprovalHint,
   onGatewayUrlChange,
-  onUseLocalDefaults,
   onConnect,
 }: GatewayConnectScreenProps) => {
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
@@ -196,25 +191,6 @@ export const GatewayConnectScreen = ({
         </div>
         <div className="mt-3 space-y-3">
           {commandField}
-          {localGatewayDefaults ? (
-            <div className="ui-input rounded-md px-3 py-3">
-              <div className="space-y-2">
-                <p className="text-xs text-white/80">
-                  Token from <span className="font-mono">~/.openclaw/openclaw.json</span> is used automatically by the server.
-                </p>
-                <p className="font-mono text-[11px] text-white">
-                  {localGatewayDefaults.url}
-                </p>
-                <button
-                  type="button"
-                  className="ui-btn-secondary h-9 w-full px-3 text-xs font-semibold tracking-[0.05em] text-white"
-                  onClick={onUseLocalDefaults}
-                >
-                  Use local defaults
-                </button>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
     </div>

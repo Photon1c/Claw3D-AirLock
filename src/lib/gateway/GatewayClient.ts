@@ -101,14 +101,6 @@ const parseConnectFailedCloseReason = (
 const DEFAULT_UPSTREAM_GATEWAY_URL =
   process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:18789";
 
-const normalizeLocalGatewayDefaults = (value: unknown): StudioGatewaySettingsPublic | null => {
-  if (!value || typeof value !== "object") return null;
-  const raw = value as { url?: unknown; tokenConfigured?: unknown };
-  const url = typeof raw.url === "string" ? raw.url.trim() : "";
-  if (!url) return null;
-  return { url, tokenConfigured: Boolean(raw.tokenConfigured) };
-};
-
 type StatusHandler = (status: GatewayStatus) => void;
 
 type EventHandler = (event: EventFrame) => void;
@@ -436,7 +428,6 @@ export type GatewayConnectionState = {
   shouldPromptForConnect: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
-  useLocalGatewayDefaults: () => void;
   setGatewayUrl: (value: string) => void;
   clearError: () => void;
 };
@@ -520,9 +511,6 @@ export const useGatewayConnection = (
   const wasManualDisconnectRef = useRef(false);
 
   const [gatewayUrl, setGatewayUrl] = useState(DEFAULT_UPSTREAM_GATEWAY_URL);
-  const [localGatewayDefaults, setLocalGatewayDefaults] = useState<StudioGatewaySettingsPublic | null>(
-    null
-  );
   const [status, setStatus] = useState<GatewayStatus>("disconnected");
   const [error, setError] = useState<string | null>(null);
   const [connectErrorCode, setConnectErrorCode] = useState<string | null>(null);
@@ -537,12 +525,10 @@ export const useGatewayConnection = (
             ? await settingsCoordinator.loadSettingsEnvelope({ force: true })
             : {
                 settings: await settingsCoordinator.loadSettings({ force: true }),
-                localGatewayDefaults: null,
               };
         const settings = envelope.settings ?? null;
         const gateway = settings?.gateway ?? null;
         if (cancelled) return;
-        setLocalGatewayDefaults(normalizeLocalGatewayDefaults(envelope.localGatewayDefaults));
         const nextGatewayUrl = gateway?.url?.trim() ? gateway.url : DEFAULT_UPSTREAM_GATEWAY_URL;
         loadedGatewaySettings.current = {
           gatewayUrl: nextGatewayUrl.trim(),
@@ -676,15 +662,6 @@ export const useGatewayConnection = (
     );
   }, [gatewayUrl, settingsCoordinator, settingsLoaded]);
 
-  const useLocalGatewayDefaults = useCallback(() => {
-    if (!localGatewayDefaults) {
-      return;
-    }
-    setGatewayUrl(localGatewayDefaults.url);
-    setError(null);
-    setConnectErrorCode(null);
-  }, [localGatewayDefaults]);
-
   const disconnect = useCallback(() => {
     setError(null);
     setConnectErrorCode(null);
@@ -713,7 +690,6 @@ export const useGatewayConnection = (
     shouldPromptForConnect,
     connect,
     disconnect,
-    useLocalGatewayDefaults,
     setGatewayUrl,
     clearError,
   };

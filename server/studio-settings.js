@@ -2,9 +2,6 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moltbot"];
-const NEW_STATE_DIRNAME = ".openclaw";
-
 const resolveUserPath = (input) => {
   const trimmed = String(input ?? "").trim();
   if (!trimmed) return trimmed;
@@ -15,39 +12,36 @@ const resolveUserPath = (input) => {
   return path.resolve(trimmed);
 };
 
-const resolveDefaultHomeDir = () => {
-  const home = os.homedir();
-  if (home) {
-    try {
-      if (fs.existsSync(home)) return home;
-    } catch {}
-  }
-  return os.tmpdir();
+const SANDBOX_STATE_DIRNAME = "claw3d_sandbox";
+
+const resolveSandboxDir = () => {
+  return path.join(os.tmpdir(), SANDBOX_STATE_DIRNAME);
+};
+
+const isSandboxMode = (env = process.env) => {
+  return (env.AIRLOCK_SANDBOX_MODE ?? env.CLAW3D_SANDBOX ?? "").trim().toLowerCase() === "1";
 };
 
 const resolveStateDir = (env = process.env) => {
-  const override =
-    env.OPENCLAW_STATE_DIR?.trim() ||
-    env.MOLTBOT_STATE_DIR?.trim() ||
-    env.CLAWDBOT_STATE_DIR?.trim();
+  const override = env.OPENCLAW_STATE_DIR?.trim();
   if (override) return resolveUserPath(override);
 
-  const home = resolveDefaultHomeDir();
-  const newDir = path.join(home, NEW_STATE_DIRNAME);
-  const legacyDirs = LEGACY_STATE_DIRNAMES.map((dir) => path.join(home, dir));
-  try {
-    if (fs.existsSync(newDir)) return newDir;
-  } catch {}
-  for (const dir of legacyDirs) {
-    try {
-      if (fs.existsSync(dir)) return dir;
-    } catch {}
+  if (isSandboxMode(env)) {
+    return resolveSandboxDir();
   }
-  return newDir;
+
+  throw new Error(
+    "OPENCLAW_STATE_DIR is not set. " +
+      "Set it explicitly or enable sandbox mode with AIRLOCK_SANDBOX_MODE=1. " +
+      "Sandbox mode uses an isolated temporary directory with no host-level state access."
+  );
 };
 
 const resolveStudioSettingsPath = (env = process.env) => {
-  return path.join(resolveStateDir(env), "claw3d", "settings.json");
+  const base = isSandboxMode(env)
+    ? resolveSandboxDir()
+    : resolveStateDir(env);
+  return path.join(base, "claw3d", "settings.json");
 };
 
 const readJsonFile = (filePath) => {
@@ -57,7 +51,6 @@ const readJsonFile = (filePath) => {
 };
 
 const DEFAULT_GATEWAY_URL = "ws://localhost:18789";
-const OPENCLAW_CONFIG_FILENAME = "openclaw.json";
 const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
 const isRecord = (value) => Boolean(value && typeof value === "object");
@@ -73,43 +66,12 @@ const isLocalGatewayUrl = (value) => {
   }
 };
 
-const readOpenclawGatewayDefaults = (env = process.env) => {
-  try {
-    const stateDir = resolveStateDir(env);
-    const configPath = path.join(stateDir, OPENCLAW_CONFIG_FILENAME);
-    const parsed = readJsonFile(configPath);
-    if (!isRecord(parsed)) return null;
-    const gateway = isRecord(parsed.gateway) ? parsed.gateway : null;
-    if (!gateway) return null;
-    const auth = isRecord(gateway.auth) ? gateway.auth : null;
-    const token = typeof auth?.token === "string" ? auth.token.trim() : "";
-    const port =
-      typeof gateway.port === "number" && Number.isFinite(gateway.port) ? gateway.port : null;
-    if (!token) return null;
-    const url = port ? `ws://localhost:${port}` : "";
-    if (!url) return null;
-    return { url, token };
-  } catch {
-    return null;
-  }
-};
-
 const loadUpstreamGatewaySettings = (env = process.env) => {
   const settingsPath = resolveStudioSettingsPath(env);
   const parsed = readJsonFile(settingsPath);
   const gateway = parsed && typeof parsed === "object" ? parsed.gateway : null;
   const url = typeof gateway?.url === "string" ? gateway.url.trim() : "";
   const token = typeof gateway?.token === "string" ? gateway.token.trim() : "";
-  if (!token && (!url || isLocalGatewayUrl(url))) {
-    const defaults = readOpenclawGatewayDefaults(env);
-    if (defaults) {
-      return {
-        url: url || defaults.url,
-        token: defaults.token,
-        settingsPath,
-      };
-    }
-  }
   return {
     url: url || DEFAULT_GATEWAY_URL,
     token,

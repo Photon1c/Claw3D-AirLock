@@ -2,7 +2,6 @@ import { fetchJson } from "@/lib/http";
 import type {
   StudioAnalyticsPreferencePatch,
   StudioFocusedPreference,
-  StudioGatewaySettingsPublic,
   StudioSettingsPublic,
   StudioSettingsPatch,
   StudioStandupPreferencePatch,
@@ -11,7 +10,6 @@ import type {
 
 export type StudioSettingsResponse = {
   settings: StudioSettingsPublic;
-  localGatewayDefaults?: StudioGatewaySettingsPublic | null;
 };
 
 export type StudioSettingsLoadOptions = {

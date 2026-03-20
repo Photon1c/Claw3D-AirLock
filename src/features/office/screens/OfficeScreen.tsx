@@ -640,11 +640,9 @@ export function OfficeScreen() {
     connectPromptReady,
     shouldPromptForConnect,
     gatewayUrl,
-    localGatewayDefaults,
     error: gatewayError,
     connect,
     disconnect,
-    useLocalGatewayDefaults,
     setGatewayUrl,
   } =
     useGatewayConnection(settingsCoordinator);
@@ -2666,12 +2664,10 @@ export function OfficeScreen() {
       <main className="min-h-screen bg-black px-4 py-10">
         <GatewayConnectScreen
           gatewayUrl={gatewayUrl}
-          localGatewayDefaults={localGatewayDefaults}
           status={status}
           error={gatewayError}
           showApprovalHint={didAttemptGatewayConnect}
           onGatewayUrlChange={setGatewayUrl}
-          onUseLocalDefaults={useLocalGatewayDefaults}
           onConnect={() => void connect()}
         />
       </main>

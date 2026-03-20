@@ -1,8 +1,5 @@
 import { randomUUID } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 
-import { readConfigAgentList } from "@/lib/gateway/agentConfig";
 import {
   loadGitHubDashboard,
   type GitHubPullRequestSummary,
@@ -18,14 +15,11 @@ import type {
   StandupTicketSummary,
   StandupTriggerKind,
 } from "@/lib/office/standup/types";
-import { resolveStateDir } from "@/lib/clawdbot/paths";
 
 type JiraIssueRecord = StandupTicketSummary & {
   assigneeName: string | null;
   assigneeEmail: string | null;
 };
-
-const OPENCLAW_CONFIG_FILENAME = "openclaw.json";
 
 const coerceText = (value: string | null | undefined): string => {
   return (value ?? "").replace(/\s+/g, " ").trim();
@@ -239,7 +233,7 @@ const loadJiraIssues = async (
 };
 
 const normalizeAgentSnapshots = (agents: StandupAgentSnapshot[]): StandupAgentSnapshot[] => {
-  const valid = agents
+  return agents
     .map((agent) => ({
       agentId: coerceText(agent.agentId),
       name: coerceText(agent.name) || coerceText(agent.agentId),
@@ -247,22 +241,6 @@ const normalizeAgentSnapshots = (agents: StandupAgentSnapshot[]): StandupAgentSn
       lastUserMessage: coerceText(agent.lastUserMessage) || null,
     }))
     .filter((agent) => agent.agentId);
-  if (valid.length > 0) return valid;
-  const configPath = path.join(resolveStateDir(), OPENCLAW_CONFIG_FILENAME);
-  if (!fs.existsSync(configPath)) return [];
-  const raw = fs.readFileSync(configPath, "utf8");
-  const parsed = JSON.parse(raw) as unknown;
-  const config =
-    parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : undefined;
-  return readConfigAgentList(config).map((entry) => ({
-    agentId: entry.id.trim(),
-    name:
-      (typeof entry.name === "string" ? entry.name.trim() : "") || entry.id.trim(),
-    latestPreview: null,
-    lastUserMessage: null,
-  }));
 };
 
 const selectAgentIssues = (

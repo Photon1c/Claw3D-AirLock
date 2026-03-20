@@ -2,25 +2,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moltbot"] as const;
-const NEW_STATE_DIRNAME = ".openclaw";
-const CONFIG_FILENAME = "openclaw.json";
-const LEGACY_CONFIG_FILENAMES = ["clawdbot.json", "moltbot.json"] as const;
-
-const resolveDefaultHomeDir = (homedir: () => string = os.homedir): string => {
-  const home = homedir();
-  if (home) {
-    try {
-      if (fs.existsSync(home)) {
-        return home;
-      }
-    } catch {
-      // ignore
-    }
-  }
-  return os.tmpdir();
-};
-
 export const resolveUserPath = (
   input: string,
   homedir: () => string = os.homedir
@@ -34,59 +15,46 @@ export const resolveUserPath = (
   return path.resolve(trimmed);
 };
 
+const SANDBOX_STATE_DIRNAME = "claw3d_sandbox";
+
+const resolveSandboxDir = (): string => {
+  return path.join(os.tmpdir(), SANDBOX_STATE_DIRNAME);
+};
+
+export const isSandboxMode = (env: NodeJS.ProcessEnv = process.env): boolean => {
+  return (env.AIRLOCK_SANDBOX_MODE ?? env.CLAW3D_SANDBOX ?? "").trim().toLowerCase() === "1";
+};
+
 export const resolveStateDir = (
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir
 ): string => {
-  const override =
-    env.OPENCLAW_STATE_DIR?.trim() ||
-    env.MOLTBOT_STATE_DIR?.trim() ||
-    env.CLAWDBOT_STATE_DIR?.trim();
+  const override = env.OPENCLAW_STATE_DIR?.trim();
   if (override) return resolveUserPath(override, homedir);
-  const defaultHome = resolveDefaultHomeDir(homedir);
-  const newDir = path.join(defaultHome, NEW_STATE_DIRNAME);
-  const legacyDirs = LEGACY_STATE_DIRNAMES.map((dir) => path.join(defaultHome, dir));
-  const hasNew = fs.existsSync(newDir);
-  if (hasNew) return newDir;
-  const existingLegacy = legacyDirs.find((dir) => {
-    try {
-      return fs.existsSync(dir);
-    } catch {
-      return false;
-    }
-  });
-  return existingLegacy ?? newDir;
+
+  if (isSandboxMode(env)) {
+    return resolveSandboxDir();
+  }
+
+  throw new Error(
+    "OPENCLAW_STATE_DIR is not set. " +
+      "Set it explicitly or enable sandbox mode with AIRLOCK_SANDBOX_MODE=1. " +
+      "Sandbox mode uses an isolated temporary directory with no host-level state access."
+  );
 };
 
 export const resolveConfigPathCandidates = (
   env: NodeJS.ProcessEnv = process.env,
   homedir: () => string = os.homedir
 ): string[] => {
-  const explicit =
-    env.OPENCLAW_CONFIG_PATH?.trim() ||
-    env.MOLTBOT_CONFIG_PATH?.trim() ||
-    env.CLAWDBOT_CONFIG_PATH?.trim();
+  const explicit = env.OPENCLAW_CONFIG_PATH?.trim();
   if (explicit) return [resolveUserPath(explicit, homedir)];
 
-  const defaultHome = resolveDefaultHomeDir(homedir);
-  const candidates: string[] = [];
-  const stateDir =
-    env.OPENCLAW_STATE_DIR?.trim() ||
-    env.MOLTBOT_STATE_DIR?.trim() ||
-    env.CLAWDBOT_STATE_DIR?.trim();
+  const stateDir = env.OPENCLAW_STATE_DIR?.trim();
   if (stateDir) {
     const resolved = resolveUserPath(stateDir, homedir);
-    candidates.push(path.join(resolved, CONFIG_FILENAME));
-    candidates.push(...LEGACY_CONFIG_FILENAMES.map((name) => path.join(resolved, name)));
+    return [path.join(resolved, "claw3d", "settings.json")];
   }
 
-  const defaultDirs = [
-    path.join(defaultHome, NEW_STATE_DIRNAME),
-    ...LEGACY_STATE_DIRNAMES.map((dir) => path.join(defaultHome, dir)),
-  ];
-  for (const dir of defaultDirs) {
-    candidates.push(path.join(dir, CONFIG_FILENAME));
-    candidates.push(...LEGACY_CONFIG_FILENAMES.map((name) => path.join(dir, name)));
-  }
-  return candidates;
+  return [];
 };

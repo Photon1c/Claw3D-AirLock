@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { resolveStateDir } from "@/lib/clawdbot/paths";
+import {
+  isSandboxMode,
+  resolveSandboxDir,
+  resolveStateDir,
+} from "@/lib/clawdbot/paths";
 import type { StandupMeeting, StandupMeetingStore } from "@/lib/office/standup/types";
 
 const STORE_DIR = "claw3d";
@@ -13,8 +17,11 @@ const ensureDirectory = (dirPath: string) => {
   }
 };
 
-const resolveStorePath = () => {
-  const dir = path.join(resolveStateDir(), STORE_DIR);
+const resolveStorePath = (env: NodeJS.ProcessEnv = process.env) => {
+  const base = isSandboxMode(env)
+    ? resolveSandboxDir()
+    : resolveStateDir(env);
+  const dir = path.join(base, STORE_DIR);
   ensureDirectory(dir);
   return path.join(dir, STORE_FILE);
 };
@@ -36,8 +43,8 @@ const normalizeMeeting = (value: unknown): StandupMeeting | null => {
   return value as StandupMeeting;
 };
 
-const readStore = (): StandupMeetingStore => {
-  const storePath = resolveStorePath();
+const readStore = (env: NodeJS.ProcessEnv = process.env): StandupMeetingStore => {
+  const storePath = resolveStorePath(env);
   if (!fs.existsSync(storePath)) {
     return defaultStore();
   }
@@ -50,17 +57,24 @@ const readStore = (): StandupMeetingStore => {
   };
 };
 
-const writeStore = (store: StandupMeetingStore) => {
-  const storePath = resolveStorePath();
+const writeStore = (store: StandupMeetingStore, env: NodeJS.ProcessEnv = process.env) => {
+  const storePath = resolveStorePath(env);
   fs.writeFileSync(storePath, JSON.stringify(store, null, 2), "utf8");
 };
 
-export const loadStandupMeetingStore = (): StandupMeetingStore => readStore();
+export const loadStandupMeetingStore = (
+  env: NodeJS.ProcessEnv = process.env
+): StandupMeetingStore => readStore(env);
 
-export const loadActiveStandupMeeting = (): StandupMeeting | null => readStore().activeMeeting;
+export const loadActiveStandupMeeting = (
+  env: NodeJS.ProcessEnv = process.env
+): StandupMeeting | null => readStore(env).activeMeeting;
 
-export const saveStandupMeeting = (meeting: StandupMeeting | null): StandupMeetingStore => {
-  const current = readStore();
+export const saveStandupMeeting = (
+  meeting: StandupMeeting | null,
+  env: NodeJS.ProcessEnv = process.env
+): StandupMeetingStore => {
+  const current = readStore(env);
   const next: StandupMeetingStore = {
     activeMeeting: meeting,
     lastMeeting: meeting ?? current.lastMeeting,
@@ -68,14 +82,15 @@ export const saveStandupMeeting = (meeting: StandupMeeting | null): StandupMeeti
   if (meeting?.phase === "complete") {
     next.lastMeeting = meeting;
   }
-  writeStore(next);
+  writeStore(next, env);
   return next;
 };
 
 export const updateStandupMeeting = (
-  updater: (meeting: StandupMeeting | null) => StandupMeeting | null
+  updater: (meeting: StandupMeeting | null) => StandupMeeting | null,
+  env: NodeJS.ProcessEnv = process.env
 ): StandupMeetingStore => {
-  const current = readStore();
+  const current = readStore(env);
   const nextMeeting = updater(current.activeMeeting);
   const nextStore: StandupMeetingStore = {
     activeMeeting: nextMeeting,
@@ -84,6 +99,6 @@ export const updateStandupMeeting = (
         ? nextMeeting
         : current.lastMeeting,
   };
-  writeStore(nextStore);
+  writeStore(nextStore, env);
   return nextStore;
 };
