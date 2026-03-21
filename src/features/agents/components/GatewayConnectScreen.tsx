@@ -7,12 +7,16 @@ import type { StudioGatewaySettings } from "@/lib/studio/settings";
 type GatewayConnectScreenProps = {
   gatewayUrl: string;
   token: string;
+  workspaceRootDir: string;
+  agentSchemaPath: string;
   localGatewayDefaults: StudioGatewaySettings | null;
   status: GatewayStatus;
   error: string | null;
   showApprovalHint: boolean;
   onGatewayUrlChange: (value: string) => void;
   onTokenChange: (value: string) => void;
+  onWorkspaceRootDirChange: (value: string) => void;
+  onAgentSchemaPathChange: (value: string) => void;
   onUseLocalDefaults: () => void;
   onConnect: () => void;
 };
@@ -29,12 +33,16 @@ const resolveLocalGatewayPort = (gatewayUrl: string): number => {
 export const GatewayConnectScreen = ({
   gatewayUrl,
   token,
+  workspaceRootDir,
+  agentSchemaPath,
   localGatewayDefaults,
   status,
   error,
   showApprovalHint,
   onGatewayUrlChange,
   onTokenChange,
+  onWorkspaceRootDirChange,
+  onAgentSchemaPathChange,
   onUseLocalDefaults,
   onConnect,
 }: GatewayConnectScreenProps) => {
@@ -156,6 +164,34 @@ export const GatewayConnectScreen = ({
           </button>
         </div>
       </label>
+      <div className="rounded-md border border-white/10 bg-white/5 px-3 py-3">
+        <p className="text-[11px] font-medium text-white">Sandbox workspace</p>
+        <p className="mt-1 text-[11px] text-white/70">
+          Claw3D limits schema loading to this workspace root.
+        </p>
+        <label className="mt-2 flex flex-col gap-1 text-[11px] font-medium text-white/90">
+          Workspace root
+          <input
+            className="ui-input h-10 rounded-md px-4 font-sans text-sm text-foreground outline-none"
+            type="text"
+            value={workspaceRootDir}
+            onChange={(event) => onWorkspaceRootDirChange(event.target.value)}
+            placeholder="~/claw3d-workspace"
+            spellCheck={false}
+          />
+        </label>
+        <label className="mt-2 flex flex-col gap-1 text-[11px] font-medium text-white/90">
+          Agent schema path
+          <input
+            className="ui-input h-10 rounded-md px-4 font-sans text-sm text-foreground outline-none"
+            type="text"
+            value={agentSchemaPath}
+            onChange={(event) => onAgentSchemaPathChange(event.target.value)}
+            placeholder="agents.schema.json"
+            spellCheck={false}
+          />
+        </label>
+      </div>
 
       <button
         type="button"
@@ -227,7 +263,7 @@ export const GatewayConnectScreen = ({
             <div className="ui-input rounded-md px-3 py-3">
               <div className="space-y-2">
                 <p className="text-xs text-white/80">
-                  Use token from <span className="font-mono">~/.openclaw/openclaw.json</span>.
+                  Use detected local gateway defaults.
                 </p>
                 <p className="font-mono text-[11px] text-white">
                   {localGatewayDefaults.url}

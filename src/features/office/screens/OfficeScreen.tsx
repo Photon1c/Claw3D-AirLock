@@ -25,8 +25,13 @@ import {
   type StudioSettingsLoadOptions,
 } from "@/lib/studio/coordinator";
 import { resolveDeskAssignments } from "@/lib/studio/settings";
-import { renameGatewayAgent } from "@/lib/gateway/agentConfig";
 import {
+  createGatewayAgent,
+  renameGatewayAgent,
+  updateGatewayAgentOverrides,
+} from "@/lib/gateway/agentConfig";
+import {
+  type StudioSchemaAgentEntry,
   runStudioBootstrapLoadOperation,
   executeStudioBootstrapLoadCommands,
 } from "@/features/agents/operations/studioBootstrapOperation";
@@ -110,6 +115,7 @@ import {
 } from "@/lib/office/deskMonitor";
 import type { StandupAgentSnapshot } from "@/lib/office/standup/types";
 import type { SkillStatusEntry } from "@/lib/skills/types";
+import { fetchStudioAgentSchema } from "@/lib/studio/agent-schema";
 
 const stringToColor = (str: string) => {
   let hash = 0;
@@ -656,6 +662,8 @@ export function OfficeScreen({
     shouldPromptForConnect,
     gatewayUrl,
     token,
+    workspaceRootDir,
+    agentSchemaPath,
     localGatewayDefaults,
     error: gatewayError,
     connect,
@@ -663,6 +671,8 @@ export function OfficeScreen({
     useLocalGatewayDefaults,
     setGatewayUrl,
     setToken,
+    setWorkspaceRootDir,
+    setAgentSchemaPath,
   } =
     useGatewayConnection(settingsCoordinator);
   const { state, dispatch, hydrateAgents, setError, setLoading } =
@@ -975,6 +985,34 @@ export function OfficeScreen({
           gatewayUrl,
           cachedConfigSnapshot: gatewayConfigSnapshot.current,
           loadStudioSettings: () => loadStudioSettings(settingsLoadOptions),
+          schemaBootstrap: {
+            loadEntries: async () => {
+              const schema = await fetchStudioAgentSchema();
+              return schema.entries;
+            },
+            createAgent: async (entry: StudioSchemaAgentEntry) => {
+              const created = await createGatewayAgent({
+                client,
+                name: entry.name,
+                workspacePath: entry.workspaceDir,
+                workspaceRootDir: workspaceRootDir.trim() || undefined,
+              });
+              if (entry.sandbox?.mode || entry.sandbox?.workspaceAccess) {
+                await updateGatewayAgentOverrides({
+                  client,
+                  agentId: created.id,
+                  overrides: {
+                    sandbox: {
+                      ...(entry.sandbox.mode ? { mode: entry.sandbox.mode } : {}),
+                      ...(entry.sandbox.workspaceAccess
+                        ? { workspaceAccess: entry.sandbox.workspaceAccess }
+                        : {}),
+                    },
+                  },
+                });
+              }
+            },
+          },
           isDisconnectLikeError: isGatewayDisconnectLikeError,
           preferredSelectedAgentId: null,
           hasCurrentSelection: false,
@@ -1090,6 +1128,7 @@ export function OfficeScreen({
     setError,
     setLoading,
     status,
+    workspaceRootDir,
   ]);
 
   const requestAgentHistoryRefresh = useCallback(
@@ -2723,12 +2762,16 @@ export function OfficeScreen({
         <GatewayConnectScreen
           gatewayUrl={gatewayUrl}
           token={token}
+          workspaceRootDir={workspaceRootDir}
+          agentSchemaPath={agentSchemaPath}
           localGatewayDefaults={localGatewayDefaults}
           status={status}
           error={gatewayError}
           showApprovalHint={didAttemptGatewayConnect}
           onGatewayUrlChange={setGatewayUrl}
           onTokenChange={setToken}
+          onWorkspaceRootDirChange={setWorkspaceRootDir}
+          onAgentSchemaPathChange={setAgentSchemaPath}
           onUseLocalDefaults={useLocalGatewayDefaults}
           onConnect={() => void connect()}
         />

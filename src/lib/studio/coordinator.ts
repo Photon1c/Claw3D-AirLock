@@ -232,6 +232,7 @@ const mergeStudioPatch = (
   if (!current) {
     return {
       ...(next.gateway !== undefined ? { gateway: next.gateway } : {}),
+      ...(next.workspace !== undefined ? { workspace: next.workspace } : {}),
       ...(next.focused ? { focused: { ...next.focused } } : {}),
       ...(next.avatars ? { avatars: { ...next.avatars } } : {}),
       ...(next.deskAssignments ? { deskAssignments: { ...next.deskAssignments } } : {}),
@@ -256,6 +257,11 @@ const mergeStudioPatch = (
       ? { gateway: next.gateway }
       : current.gateway !== undefined
         ? { gateway: current.gateway }
+        : {}),
+    ...(next.workspace !== undefined
+      ? { workspace: next.workspace }
+      : current.workspace !== undefined
+        ? { workspace: current.workspace }
         : {}),
     ...(focused ? { focused } : {}),
     ...(avatars ? { avatars } : {}),

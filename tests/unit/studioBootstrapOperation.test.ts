@@ -96,6 +96,57 @@ describe("studioBootstrapOperation", () => {
     expect(commands).toEqual([{ kind: "set-error", message: "load failed" }]);
   });
 
+  it("bootstraps missing agents from schema before hydrating final fleet", async () => {
+    hydrateAgentFleetFromGatewayMock
+      .mockResolvedValueOnce({
+        seeds: [],
+        sessionCreatedAgentIds: [],
+        sessionSettingsSyncedAgentIds: [],
+        summaryPatches: [],
+        suggestedSelectedAgentId: null,
+        configSnapshot: null,
+      })
+      .mockResolvedValueOnce({
+        seeds: [{ agentId: "schema-agent", name: "Schema Agent", sessionKey: "agent:schema-agent:main" }],
+        sessionCreatedAgentIds: [],
+        sessionSettingsSyncedAgentIds: [],
+        summaryPatches: [],
+        suggestedSelectedAgentId: "schema-agent",
+        configSnapshot: null,
+      });
+    const createAgent = vi.fn(async () => {});
+
+    const commands = await runStudioBootstrapLoadOperation({
+      client: { call: async () => null },
+      gatewayUrl: "https://gateway.test",
+      cachedConfigSnapshot: null,
+      loadStudioSettings: async () => null,
+      schemaBootstrap: {
+        loadEntries: async () => [
+          {
+            id: "schema-agent",
+            name: "Schema Agent",
+            workspaceDir: "/tmp/schema-agent",
+          },
+        ],
+        createAgent,
+      },
+      isDisconnectLikeError: () => false,
+      preferredSelectedAgentId: null,
+      hasCurrentSelection: false,
+    });
+
+    expect(createAgent).toHaveBeenCalledTimes(1);
+    expect(hydrateAgentFleetFromGatewayMock).toHaveBeenCalledTimes(2);
+    expect(commands).toEqual([
+      {
+        kind: "hydrate-agents",
+        seeds: [{ agentId: "schema-agent", name: "Schema Agent", sessionKey: "agent:schema-agent:main" }],
+        initialSelectedAgentId: "schema-agent",
+      },
+    ]);
+  });
+
   it("executes bootstrap commands with injected callbacks", () => {
     const commands: StudioBootstrapLoadCommand[] = [
       {

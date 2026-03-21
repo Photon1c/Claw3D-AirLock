@@ -441,7 +441,7 @@ export function useAgentSettingsMutationController(params: UseAgentSettingsMutat
       const agent = params.agents.find((entry) => entry.agentId === decision.normalizedAgentId);
       if (!agent) return;
       const confirmed = window.confirm(
-        `Delete ${agent.name}? This removes the agent from gateway config + scheduled automations and moves its workspace/state into ~/.openclaw/trash on the gateway host.`
+        `Delete ${agent.name}? This removes the agent from gateway config + scheduled automations and moves its workspace/state into the configured sandbox trash on the gateway host.`
       );
       if (!confirmed) return;
 

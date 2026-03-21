@@ -7,6 +7,7 @@ import {
   runSshJson,
 } from "@/lib/ssh/gateway-host";
 import { loadStudioSettings } from "@/lib/studio/settings-store";
+import { resolveSandboxRootDir } from "@/lib/studio/workspace";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -43,44 +44,44 @@ const validateRawMediaPath = (raw: string): { trimmed: string; mime: string } =>
   return { trimmed, mime };
 };
 
-const resolveAndValidateLocalMediaPath = (raw: string): { resolved: string; mime: string } => {
+const isPathWithinRoot = (rootDir: string, candidatePath: string) => {
+  const relative = path.relative(rootDir, candidatePath);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+};
+
+const resolveAndValidateLocalMediaPath = (
+  raw: string,
+  sandboxRootDir: string
+): { resolved: string; mime: string } => {
   const { trimmed, mime } = validateRawMediaPath(raw);
 
+  const resolvedRoot = path.resolve(expandTildeLocal(sandboxRootDir));
   const expanded = expandTildeLocal(trimmed);
-  if (!path.isAbsolute(expanded)) {
-    throw new Error("path must be absolute or start with ~/");
-  }
-
-  const resolved = path.resolve(expanded);
-
-  const allowedRoot = path.join(os.homedir(), ".openclaw");
-  const allowedPrefix = `${allowedRoot}${path.sep}`;
-  if (!(resolved === allowedRoot || resolved.startsWith(allowedPrefix))) {
-    throw new Error(`Refusing to read media outside ${allowedRoot}`);
+  const resolved = path.isAbsolute(expanded)
+    ? path.resolve(expanded)
+    : path.resolve(resolvedRoot, expanded);
+  if (!isPathWithinRoot(resolvedRoot, resolved)) {
+    throw new Error(`Refusing to read media outside sandbox root ${resolvedRoot}`);
   }
 
   return { resolved, mime };
 };
 
-const validateRemoteMediaPath = (raw: string): { remotePath: string; mime: string } => {
+const validateRemoteMediaPath = (
+  raw: string,
+  sandboxRootDir: string
+): { remotePath: string; remoteRoot: string; mime: string } => {
   const { trimmed, mime } = validateRawMediaPath(raw);
-
-  if (!(trimmed.startsWith("/") || trimmed === "~" || trimmed.startsWith("~/"))) {
-    throw new Error("path must be absolute or start with ~/");
+  const remoteRoot = sandboxRootDir.trim().replaceAll("\\", "/");
+  if (!remoteRoot) {
+    throw new Error("Sandbox root is required for remote media reads.");
   }
-
-  // Remote side enforces ~/.openclaw; this guard lets Studio on macOS request
-  // /home/ubuntu/.openclaw/... without tripping local homedir checks.
-  const normalized = trimmed.replaceAll("\\\\", "/");
-  const inOpenclaw =
-    normalized === "~/.openclaw" ||
-    normalized.startsWith("~/.openclaw/") ||
-    normalized.includes("/.openclaw/");
-  if (!inOpenclaw) {
-    throw new Error("Refusing to read remote media outside ~/.openclaw");
-  }
-
-  return { remotePath: trimmed, mime };
+  const normalized = trimmed.replaceAll("\\", "/");
+  const remotePath =
+    normalized.startsWith("/") || normalized.startsWith("~")
+      ? normalized
+      : `${remoteRoot.replace(/\/+$/, "")}/${normalized}`;
+  return { remotePath, remoteRoot, mime };
 };
 
 const readLocalMedia = async (resolvedPath: string): Promise<{ bytes: Buffer; size: number }> => {
@@ -98,7 +99,7 @@ const readLocalMedia = async (resolvedPath: string): Promise<{ bytes: Buffer; si
 const REMOTE_READ_SCRIPT = `
 set -euo pipefail
 
-python3 - "$1" <<'PY'
+python3 - "$1" "$2" <<'PY'
 import base64
 import json
 import mimetypes
@@ -107,8 +108,12 @@ import pathlib
 import sys
 
 raw = sys.argv[1].strip()
+allowed_root_raw = sys.argv[2].strip()
 if not raw:
   print(json.dumps({"error": "path is required"}))
+  raise SystemExit(2)
+if not allowed_root_raw:
+  print(json.dumps({"error": "sandbox root is required"}))
   raise SystemExit(2)
 
 p = pathlib.Path(os.path.expanduser(raw))
@@ -118,8 +123,7 @@ except FileNotFoundError:
   print(json.dumps({"error": f"file not found: {raw}"}))
   raise SystemExit(3)
 
-home = pathlib.Path.home().resolve()
-allowed = (home / ".openclaw").resolve()
+allowed = pathlib.Path(os.path.expanduser(allowed_root_raw)).resolve(strict=False)
 if resolved != allowed and allowed not in resolved.parents:
   print(json.dumps({"error": f"Refusing to read media outside {allowed}"}))
   raise SystemExit(4)
@@ -148,24 +152,31 @@ print(json.dumps({"ok": True, "mime": mime, "size": size, "data": data}))
 PY
 `;
 
-const resolveSshTarget = (): string | null => {
-  const settings = loadStudioSettings();
-  const gatewayUrl = settings.gateway?.url ?? "";
+const resolveSshTarget = (gatewayUrl: string): string | null => {
   if (isLocalGatewayUrl(gatewayUrl)) return null;
   const configured = resolveConfiguredSshTarget(process.env);
   if (configured) return configured;
   return resolveGatewaySshTargetFromGatewayUrl(gatewayUrl, process.env);
 };
 
+const resolveRemoteSandboxRoot = (value: unknown): string => {
+  if (typeof value !== "string") return "~/.claw3d/sandboxes";
+  const trimmed = value.trim();
+  return trimmed || "~/.claw3d/sandboxes";
+};
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const rawPath = (searchParams.get("path") ?? "").trim();
-
-    const sshTarget = resolveSshTarget();
+    const settings = loadStudioSettings();
+    const gatewayUrl = settings.gateway?.url ?? "";
+    const sandboxRootDir = resolveSandboxRootDir(settings, process.env);
+    const remoteSandboxRoot = resolveRemoteSandboxRoot(settings.workspace?.sandboxRootDir);
+    const sshTarget = resolveSshTarget(gatewayUrl);
 
     if (!sshTarget) {
-      const { resolved, mime } = resolveAndValidateLocalMediaPath(rawPath);
+      const { resolved, mime } = resolveAndValidateLocalMediaPath(rawPath, sandboxRootDir);
       const { bytes, size } = await readLocalMedia(resolved);
       const body = new Blob([Uint8Array.from(bytes)], { type: mime });
       return new Response(body, {
@@ -177,11 +188,11 @@ export async function GET(request: Request) {
       });
     }
 
-    const { remotePath, mime } = validateRemoteMediaPath(rawPath);
+    const { remotePath, remoteRoot, mime } = validateRemoteMediaPath(rawPath, remoteSandboxRoot);
 
     const payload = runSshJson({
       sshTarget,
-      argv: ["bash", "-s", "--", remotePath],
+      argv: ["bash", "-s", "--", remotePath, remoteRoot],
       label: "gateway media read",
       input: REMOTE_READ_SCRIPT,
       fallbackMessage: `Failed to fetch media over ssh (${sshTarget})`,

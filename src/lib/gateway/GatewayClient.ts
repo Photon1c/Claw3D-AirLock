@@ -110,6 +110,19 @@ const normalizeLocalGatewayDefaults = (value: unknown): StudioGatewaySettings | 
   return { url, token };
 };
 
+const normalizeWorkspaceSettings = (
+  value: unknown
+): { sandboxRootDir: string; agentSchemaPath: string } => {
+  if (!value || typeof value !== "object") {
+    return { sandboxRootDir: "", agentSchemaPath: "" };
+  }
+  const raw = value as { sandboxRootDir?: unknown; agentSchemaPath?: unknown };
+  return {
+    sandboxRootDir: typeof raw.sandboxRootDir === "string" ? raw.sandboxRootDir : "",
+    agentSchemaPath: typeof raw.agentSchemaPath === "string" ? raw.agentSchemaPath : "",
+  };
+};
+
 type StatusHandler = (status: GatewayStatus) => void;
 
 type EventHandler = (event: EventFrame) => void;
@@ -433,6 +446,8 @@ export type GatewayConnectionState = {
   status: GatewayStatus;
   gatewayUrl: string;
   token: string;
+  workspaceRootDir: string;
+  agentSchemaPath: string;
   localGatewayDefaults: StudioGatewaySettings | null;
   error: string | null;
   connectPromptReady: boolean;
@@ -442,6 +457,8 @@ export type GatewayConnectionState = {
   useLocalGatewayDefaults: () => void;
   setGatewayUrl: (value: string) => void;
   setToken: (value: string) => void;
+  setWorkspaceRootDir: (value: string) => void;
+  setAgentSchemaPath: (value: string) => void;
   clearError: () => void;
 };
 
@@ -518,13 +535,20 @@ export const useGatewayConnection = (
   const [client] = useState(() => new GatewayClient());
   const didAutoConnect = useRef(false);
   const hasConnectedOnceRef = useRef(false);
-  const loadedGatewaySettings = useRef<{ gatewayUrl: string; token: string } | null>(null);
+  const loadedStudioSettings = useRef<{
+    gatewayUrl: string;
+    token: string;
+    workspaceRootDir: string;
+    agentSchemaPath: string;
+  } | null>(null);
   const retryAttemptRef = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasManualDisconnectRef = useRef(false);
 
   const [gatewayUrl, setGatewayUrl] = useState(DEFAULT_UPSTREAM_GATEWAY_URL);
   const [token, setToken] = useState("");
+  const [workspaceRootDir, setWorkspaceRootDir] = useState("");
+  const [agentSchemaPath, setAgentSchemaPath] = useState("");
   const [localGatewayDefaults, setLocalGatewayDefaults] = useState<StudioGatewaySettings | null>(
     null
   );
@@ -546,6 +570,7 @@ export const useGatewayConnection = (
               };
         const settings = envelope.settings ?? null;
         const gateway = settings?.gateway ?? null;
+        const workspace = normalizeWorkspaceSettings(settings?.workspace);
         if (cancelled) return;
         setLocalGatewayDefaults(normalizeLocalGatewayDefaults(envelope.localGatewayDefaults));
         const nextGatewayUrl = gateway?.url?.trim() ? gateway.url : DEFAULT_UPSTREAM_GATEWAY_URL;
@@ -553,12 +578,16 @@ export const useGatewayConnection = (
           gateway && "token" in gateway && typeof gateway.token === "string"
             ? gateway.token
             : "";
-        loadedGatewaySettings.current = {
+        loadedStudioSettings.current = {
           gatewayUrl: nextGatewayUrl.trim(),
           token: nextToken,
+          workspaceRootDir: workspace.sandboxRootDir,
+          agentSchemaPath: workspace.agentSchemaPath,
         };
         setGatewayUrl(nextGatewayUrl);
         setToken(nextToken);
+        setWorkspaceRootDir(workspace.sandboxRootDir);
+        setAgentSchemaPath(workspace.agentSchemaPath);
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : "Failed to load gateway settings.";
@@ -566,10 +595,12 @@ export const useGatewayConnection = (
         }
       } finally {
         if (!cancelled) {
-          if (!loadedGatewaySettings.current) {
-            loadedGatewaySettings.current = {
+          if (!loadedStudioSettings.current) {
+            loadedStudioSettings.current = {
               gatewayUrl: DEFAULT_UPSTREAM_GATEWAY_URL.trim(),
               token: "",
+              workspaceRootDir: "",
+              agentSchemaPath: "",
             };
           }
           setSettingsLoaded(true);
@@ -672,10 +703,17 @@ export const useGatewayConnection = (
 
   useEffect(() => {
     if (!settingsLoaded) return;
-    const baseline = loadedGatewaySettings.current;
+    const baseline = loadedStudioSettings.current;
     if (!baseline) return;
     const nextGatewayUrl = gatewayUrl.trim();
-    if (nextGatewayUrl === baseline.gatewayUrl && token === baseline.token) {
+    const nextWorkspaceRootDir = workspaceRootDir.trim();
+    const nextAgentSchemaPath = agentSchemaPath.trim();
+    if (
+      nextGatewayUrl === baseline.gatewayUrl &&
+      token === baseline.token &&
+      nextWorkspaceRootDir === baseline.workspaceRootDir &&
+      nextAgentSchemaPath === baseline.agentSchemaPath
+    ) {
       return;
     }
     settingsCoordinator.schedulePatch(
@@ -684,10 +722,21 @@ export const useGatewayConnection = (
           url: nextGatewayUrl,
           token,
         },
+        workspace: {
+          sandboxRootDir: nextWorkspaceRootDir,
+          agentSchemaPath: nextAgentSchemaPath,
+        },
       },
       400
     );
-  }, [gatewayUrl, settingsCoordinator, settingsLoaded, token]);
+  }, [
+    agentSchemaPath,
+    gatewayUrl,
+    settingsCoordinator,
+    settingsLoaded,
+    token,
+    workspaceRootDir,
+  ]);
 
   const useLocalGatewayDefaults = useCallback(() => {
     if (!localGatewayDefaults) {
@@ -723,6 +772,8 @@ export const useGatewayConnection = (
     status,
     gatewayUrl,
     token,
+    workspaceRootDir,
+    agentSchemaPath,
     localGatewayDefaults,
     error,
     connectPromptReady,
@@ -732,6 +783,8 @@ export const useGatewayConnection = (
     useLocalGatewayDefaults,
     setGatewayUrl,
     setToken,
+    setWorkspaceRootDir,
+    setAgentSchemaPath,
     clearError,
   };
 };

@@ -25,11 +25,9 @@ type RestoreAgentStateRequest = {
 
 const isSafeAgentId = (value: string) => /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/.test(value);
 
-const resolveAgentStateSshTarget = (): string | null => {
+const resolveAgentStateSshTarget = (gatewayUrl: string): string | null => {
   const configured = resolveConfiguredSshTarget(process.env);
   if (configured) return configured;
-  const settings = loadStudioSettings();
-  const gatewayUrl = settings.gateway?.url ?? "";
   if (isLocalGatewayUrl(gatewayUrl)) return null;
   return resolveGatewaySshTargetFromGatewayUrl(gatewayUrl, process.env);
 };
@@ -49,10 +47,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Invalid agentId: ${trimmed}` }, { status: 400 });
     }
 
-    const sshTarget = resolveAgentStateSshTarget();
+    const settings = loadStudioSettings();
+    const workspaceRootDir = settings.workspace?.sandboxRootDir?.trim() || undefined;
+    const sshTarget = resolveAgentStateSshTarget(settings.gateway?.url ?? "");
     const result = sshTarget
-      ? trashAgentStateOverSsh({ sshTarget, agentId: trimmed })
-      : trashAgentStateLocally({ agentId: trimmed });
+      ? trashAgentStateOverSsh({ sshTarget, agentId: trimmed, workspaceRootDir })
+      : trashAgentStateLocally({ agentId: trimmed, workspaceRootDir });
     return NextResponse.json({ result });
   } catch (err) {
     const message =
@@ -91,16 +91,20 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: `Invalid agentId: ${trimmedAgent}` }, { status: 400 });
     }
 
-    const sshTarget = resolveAgentStateSshTarget();
+    const settings = loadStudioSettings();
+    const workspaceRootDir = settings.workspace?.sandboxRootDir?.trim() || undefined;
+    const sshTarget = resolveAgentStateSshTarget(settings.gateway?.url ?? "");
     const result = sshTarget
       ? restoreAgentStateOverSsh({
           sshTarget,
           agentId: trimmedAgent,
           trashDir: trimmedTrash,
+          workspaceRootDir,
         })
       : restoreAgentStateLocally({
           agentId: trimmedAgent,
           trashDir: trimmedTrash,
+          workspaceRootDir,
         });
     return NextResponse.json({ result });
   } catch (err) {

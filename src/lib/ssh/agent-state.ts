@@ -14,7 +14,7 @@ export type RestoreAgentStateResult = {
 const TRASH_SCRIPT = `
 set -euo pipefail
 
-python3 - "$1" <<'PY'
+python3 - "$1" "$2" <<'PY'
 import datetime
 import json
 import os
@@ -25,12 +25,28 @@ import sys
 import uuid
 
 agent_id = sys.argv[1].strip()
+workspace_root_raw = sys.argv[2].strip()
 if not agent_id:
   raise SystemExit("agentId is required.")
 if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}", agent_id):
   raise SystemExit(f"Invalid agentId: {agent_id}")
 
-base = pathlib.Path.home() / ".openclaw"
+def resolve_state_dir() -> pathlib.Path:
+  override = (
+    os.environ.get("OPENCLAW_STATE_DIR", "").strip()
+    or os.environ.get("MOLTBOT_STATE_DIR", "").strip()
+    or os.environ.get("CLAWDBOT_STATE_DIR", "").strip()
+  )
+  if override:
+    return pathlib.Path(os.path.expanduser(override))
+  home = pathlib.Path.home()
+  preferred = home / ".claw3d"
+  for candidate in [preferred, home / ".openclaw", home / ".clawdbot", home / ".moltbot"]:
+    if candidate.exists():
+      return candidate
+  return preferred
+
+base = resolve_state_dir()
 trash_root = base / "trash" / "studio-delete-agent"
 stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 trash_dir = trash_root / f"{stamp}-{agent_id}-{uuid.uuid4()}"
@@ -47,6 +63,9 @@ def move_if_exists(src: pathlib.Path, dest: pathlib.Path):
   moves.append({"from": str(src), "to": str(dest)})
 
 move_if_exists(base / f"workspace-{agent_id}", trash_dir / "workspaces" / f"workspace-{agent_id}")
+if workspace_root_raw:
+  workspace_root = pathlib.Path(os.path.expanduser(workspace_root_raw))
+  move_if_exists(workspace_root / agent_id, trash_dir / "workspaces" / agent_id)
 move_if_exists(base / "agents" / agent_id, trash_dir / "agents" / agent_id)
 
 print(json.dumps({"trashDir": str(trash_dir), "moved": moves}))
@@ -56,7 +75,7 @@ PY
 const RESTORE_SCRIPT = `
 set -euo pipefail
 
-python3 - "$1" "$2" <<'PY'
+python3 - "$1" "$2" "$3" <<'PY'
 import json
 import pathlib
 import re
@@ -65,6 +84,7 @@ import sys
 
 agent_id = sys.argv[1].strip()
 trash_dir_raw = sys.argv[2].strip()
+workspace_root_raw = sys.argv[3].strip()
 
 if not agent_id:
   raise SystemExit("agentId is required.")
@@ -73,7 +93,22 @@ if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}", agent_id):
 if not trash_dir_raw:
   raise SystemExit("trashDir is required.")
 
-base = pathlib.Path.home() / ".openclaw"
+def resolve_state_dir() -> pathlib.Path:
+  override = (
+    os.environ.get("OPENCLAW_STATE_DIR", "").strip()
+    or os.environ.get("MOLTBOT_STATE_DIR", "").strip()
+    or os.environ.get("CLAWDBOT_STATE_DIR", "").strip()
+  )
+  if override:
+    return pathlib.Path(os.path.expanduser(override))
+  home = pathlib.Path.home()
+  preferred = home / ".claw3d"
+  for candidate in [preferred, home / ".openclaw", home / ".clawdbot", home / ".moltbot"]:
+    if candidate.exists():
+      return candidate
+  return preferred
+
+base = resolve_state_dir()
 trash_dir = pathlib.Path(trash_dir_raw).expanduser()
 
 try:
@@ -100,6 +135,12 @@ restore_if_exists(
   resolved_trash / "workspaces" / f"workspace-{agent_id}",
   base / f"workspace-{agent_id}",
 )
+if workspace_root_raw:
+  workspace_root = pathlib.Path(workspace_root_raw).expanduser()
+  restore_if_exists(
+    resolved_trash / "workspaces" / agent_id,
+    workspace_root / agent_id,
+  )
 restore_if_exists(
   resolved_trash / "agents" / agent_id,
   base / "agents" / agent_id,
@@ -112,10 +153,11 @@ PY
 export const trashAgentStateOverSsh = (params: {
   sshTarget: string;
   agentId: string;
+  workspaceRootDir?: string;
 }): TrashAgentStateResult => {
   const result = runSshJson({
     sshTarget: params.sshTarget,
-    argv: ["bash", "-s", "--", params.agentId],
+    argv: ["bash", "-s", "--", params.agentId, params.workspaceRootDir ?? ""],
     input: TRASH_SCRIPT,
     label: `trash agent state (${params.agentId})`,
   });
@@ -126,10 +168,18 @@ export const restoreAgentStateOverSsh = (params: {
   sshTarget: string;
   agentId: string;
   trashDir: string;
+  workspaceRootDir?: string;
 }): RestoreAgentStateResult => {
   const result = runSshJson({
     sshTarget: params.sshTarget,
-    argv: ["bash", "-s", "--", params.agentId, params.trashDir],
+    argv: [
+      "bash",
+      "-s",
+      "--",
+      params.agentId,
+      params.trashDir,
+      params.workspaceRootDir ?? "",
+    ],
     input: RESTORE_SCRIPT,
     label: `restore agent state (${params.agentId})`,
   });

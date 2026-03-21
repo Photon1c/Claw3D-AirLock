@@ -27,9 +27,9 @@ describe("agent state ssh executor", () => {
     expect(runSshJson).toHaveBeenCalledWith(
       expect.objectContaining({
         sshTarget: "me@host",
-        argv: ["bash", "-s", "--", "my-agent"],
+        argv: ["bash", "-s", "--", "my-agent", ""],
         label: "trash agent state (my-agent)",
-        input: expect.stringContaining('python3 - "$1"'),
+        input: expect.stringContaining('python3 - "$1" "$2"'),
       })
     );
     const call = mockedRunSshJson.mock.calls[0]?.[0];
@@ -50,9 +50,9 @@ describe("agent state ssh executor", () => {
     expect(runSshJson).toHaveBeenCalledWith(
       expect.objectContaining({
         sshTarget: "me@host",
-        argv: ["bash", "-s", "--", "my-agent", "/tmp/trash"],
+        argv: ["bash", "-s", "--", "my-agent", "/tmp/trash", ""],
         label: "restore agent state (my-agent)",
-        input: expect.stringContaining('python3 - "$1" "$2"'),
+        input: expect.stringContaining('python3 - "$1" "$2" "$3"'),
       })
     );
   });

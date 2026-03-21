@@ -2,8 +2,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moltbot"];
-const NEW_STATE_DIRNAME = ".openclaw";
+const PREFERRED_STATE_DIRNAME = ".claw3d";
+const LEGACY_STATE_DIRNAMES = [".openclaw", ".clawdbot", ".moltbot"];
 
 const resolveUserPath = (input) => {
   const trimmed = String(input ?? "").trim();
@@ -33,17 +33,17 @@ const resolveStateDir = (env = process.env) => {
   if (override) return resolveUserPath(override);
 
   const home = resolveDefaultHomeDir();
-  const newDir = path.join(home, NEW_STATE_DIRNAME);
+  const preferredDir = path.join(home, PREFERRED_STATE_DIRNAME);
   const legacyDirs = LEGACY_STATE_DIRNAMES.map((dir) => path.join(home, dir));
   try {
-    if (fs.existsSync(newDir)) return newDir;
+    if (fs.existsSync(preferredDir)) return preferredDir;
   } catch {}
   for (const dir of legacyDirs) {
     try {
       if (fs.existsSync(dir)) return dir;
     } catch {}
   }
-  return newDir;
+  return preferredDir;
 };
 
 const resolveStudioSettingsPath = (env = process.env) => {
