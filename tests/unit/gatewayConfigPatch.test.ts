@@ -125,17 +125,7 @@ describe("gateway agent helpers", () => {
 
   it("fails when create name produces an empty id slug", async () => {
     const client = {
-      call: vi.fn(async (method: string) => {
-        if (method === "config.get") {
-          return {
-            exists: true,
-            hash: "hash-create-empty-slug-1",
-            path: "/Users/test/.openclaw/openclaw.json",
-            config: {
-              agents: { list: [] },
-            },
-          };
-        }
+      call: vi.fn(async () => {
         throw new Error("unexpected method");
       }),
     } as unknown as GatewayClient;
@@ -143,8 +133,7 @@ describe("gateway agent helpers", () => {
     await expect(createGatewayAgent({ client, name: "!!!" })).rejects.toThrow(
       "Name produced an empty folder name."
     );
-    expect(client.call).toHaveBeenCalledTimes(1);
-    expect((client.call as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe("config.get");
+    expect(client.call).not.toHaveBeenCalled();
   });
 
   it("returns current settings when no heartbeat override exists to remove", async () => {
