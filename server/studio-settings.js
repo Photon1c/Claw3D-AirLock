@@ -38,6 +38,13 @@ const resolveStateDir = (env = process.env) => {
 };
 
 const resolveStudioSettingsPath = (env = process.env) => {
+  const configPath = env.OPENCLAW_CONFIG_PATH?.trim();
+  if (isSandboxMode(env) && configPath) {
+    const resolved = resolveUserPath(configPath);
+    if (fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
   const base = isSandboxMode(env)
     ? resolveSandboxDir()
     : resolveStateDir(env);

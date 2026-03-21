@@ -194,6 +194,10 @@ function createGatewayProxy(options) {
         return;
       }
 
+      log("[gateway-proxy] upstream connect", {
+        hasToken: Boolean(upstreamToken),
+        url: upstreamUrl,
+      });
       upstreamWs = new WebSocket(upstreamUrl, { origin: upstreamOrigin });
 
       upstreamWs.on("open", () => {

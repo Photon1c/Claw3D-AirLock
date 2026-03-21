@@ -46,6 +46,11 @@ async function main() {
   const proxy = createGatewayProxy({
     loadUpstreamSettings: async () => {
       const settings = loadUpstreamGatewaySettings(process.env);
+      console.info("[gateway-proxy] upstream settings loaded", {
+        hasToken: Boolean(settings.token),
+        url: settings.url,
+        settingsPath: settings.settingsPath,
+      });
       return { url: settings.url, token: settings.token };
     },
     allowWs: (req) => {
