@@ -6,7 +6,7 @@ Please use GitHub Issues for bugs, feature requests, and questions about planned
 
 ## Before you start
 - Install OpenClaw and confirm the gateway runs locally.
-- This repo is UI-only and reads config from `~/.openclaw` with legacy fallback to `~/.moltbot` or `~/.clawdbot`.
+- This repo is UI-only and requires explicit configuration. Set `OPENCLAW_STATE_DIR` to point to your OpenClaw state directory, or enable sandbox mode with `AIRLOCK_SANDBOX_MODE=1`. There is no implicit fallback to `~/.openclaw`.
 - It does not run or build the gateway from source.
 - Read `CODE_DOCUMENTATION.md` for the repo code map, extension points, and the recommended onboarding order through the codebase.
 - Use `ROADMAP.md` if you are looking for starter work or near-term priorities.

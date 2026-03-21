@@ -49,7 +49,7 @@ export const resolveGatewaySshTarget = (env: NodeJS.ProcessEnv = process.env): s
   const configured = resolveConfiguredSshTarget(env);
   if (configured) return configured;
 
-  const settings = loadStudioSettings();
+  const settings = loadStudioSettings(env);
   return resolveGatewaySshTargetFromGatewayUrl(settings.gateway?.url?.trim() ?? "", env);
 };
 

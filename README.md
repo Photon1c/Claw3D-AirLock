@@ -148,17 +148,21 @@ Alternative with SSH:
 
 ## Configuration
 
-Important runtime paths:
+State and config are **explicit by design**. There is no implicit fallback to `~/.openclaw` or legacy paths. Claw3D fails clearly if no explicit configuration is provided.
 
-- OpenClaw config: `~/.openclaw/openclaw.json`
-- Studio settings: `~/.openclaw/claw3d/settings.json`
+### State directory
 
-Common environment variables:
+- **`OPENCLAW_STATE_DIR`** — sets the state root directory. This is the primary mechanism for configuring where Claw3D stores settings, agent state, and office data.
+- **`OPENCLAW_CONFIG_PATH`** — explicitly points to a settings file (e.g. `/path/to/settings.json`). Takes precedence over `OPENCLAW_STATE_DIR` if both are set.
+- **`AIRLOCK_SANDBOX_MODE=1`** (or `CLAW3D_SANDBOX=1`) — enables isolated sandbox mode. State is stored in an isolated temporary directory (`/tmp/claw3d_sandbox/`). No host-level state is accessed.
+
+If neither `OPENCLAW_STATE_DIR` nor `OPENCLAW_CONFIG_PATH` is set, the application exits with a clear error. There is no silent fallback to `~/.openclaw`.
+
+### Common environment variables
 
 - `HOST` and `PORT` control the Studio server bind address and port.
 - `STUDIO_ACCESS_TOKEN` protects Studio when binding to a public host.
 - `NEXT_PUBLIC_GATEWAY_URL` provides the default upstream gateway URL when Studio settings are empty.
-- `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` override the default OpenClaw paths.
 - `OPENCLAW_GATEWAY_SSH_TARGET` and `OPENCLAW_GATEWAY_SSH_USER` support gateway-host operations over SSH.
 - `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, and `ELEVENLABS_MODEL_ID` enable voice reply integration.
 

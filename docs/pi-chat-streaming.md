@@ -107,8 +107,7 @@ The key wiring is in:
 
 ## Studio Settings (Where Gateway URL/Token Come From)
 
-Studio persists Gateway connection settings on the Studio host (not in browser persistent storage). The UI still loads them into browser memory at runtime:
-- `~/.openclaw/claw3d/settings.json` (see `README.md` for the canonical location)
+Studio persists Gateway connection settings on the Studio host (not in browser persistent storage). The UI still loads them into browser memory at runtime. Settings are stored at `<OPENCLAW_STATE_DIR>/claw3d/settings.json` (or `<OPENCLAW_CONFIG_PATH>` if set directly). There is no implicit fallback to `~/.openclaw`.
 
 The WS proxy loads these settings server-side and opens the upstream connection.
 
@@ -116,13 +115,13 @@ Files:
 - Settings file access (WS proxy): `server/studio-settings.js`
 - Settings API route (browser -> server): `src/app/api/studio/route.ts`
 - Client-side load/patch coordinator: `src/lib/studio/coordinator.ts`
-- Settings storage + fallback behavior used by `/api/studio`: `src/lib/studio/settings-store.ts`
+- Settings storage (no fallback): `src/lib/studio/settings-store.ts`
 
 Connection note:
 - In the browser, `useGatewayConnection()` stores the upstream URL/token in memory (loaded from `/api/studio`) but connects the WebSocket to Studio via `resolveStudioProxyGatewayUrl()`; the upstream URL is passed as `authScopeKey` (not as the WebSocket URL). See `src/lib/gateway/GatewayClient.ts`.
 
 Token resolution note:
-- The Studio server resolves an upstream token from `claw3d/settings.json`, and if it is missing it may fall back to the local OpenClaw config in `openclaw.json` (token + port). This behavior exists in both the WS proxy path (`server/studio-settings.js`) and the `/api/studio` storage layer (`src/lib/studio/settings-store.ts`) and they should remain consistent.
+- The Studio server resolves the upstream token from the configured settings file (`<OPENCLAW_STATE_DIR>/claw3d/settings.json`, or `OPENCLAW_CONFIG_PATH` if set). There is no fallback to `openclaw.json`. If no token is configured, the connection requires browser-side authentication (device signature).
 - During `connect`, the WS proxy forwards browser-provided auth (`params.auth.token` or `params.device.signature`) as-is. It injects the host-resolved token only when browser auth is absent. `studio.gateway_token_missing` is returned only when neither browser auth nor host token is available.
 
 ## WebSocket Frame Shapes
@@ -334,12 +333,12 @@ Files:
 ## Media Rendering (Images From Agent Output)
 
 If an agent outputs lines like:
-- `MEDIA: /home/ubuntu/.openclaw/.../image.png`
+- `MEDIA: /path/to/OPENCLAW_STATE_DIR/workspace-agent/image.png`
 
 Studio may render them inline:
 1. UI rewrites eligible `MEDIA:` lines into markdown images (`![](/api/gateway/media?path=...)`) but avoids rewriting inside fenced code blocks.
 2. The browser requests `/api/gateway/media`.
-3. The API route reads the image either locally (only under `~/.openclaw`) or over SSH for remote gateways, and returns the bytes with the correct `Content-Type`.
+3. The API route reads the image locally (within `OPENCLAW_STATE_DIR`) or over SSH for remote gateways, and returns the bytes with the correct `Content-Type`. `OPENCLAW_STATE_DIR` must be set explicitly; sandbox mode is not supported for remote media access.
 
 Files:
 - Rewrite helper: `src/lib/text/media-markdown.ts`
