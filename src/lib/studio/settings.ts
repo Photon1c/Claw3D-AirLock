@@ -22,6 +22,16 @@ export type StudioGatewaySettingsPatch = {
   token?: string | null;
 };
 
+export type StudioWorkspaceSettings = {
+  sandboxRootDir: string;
+  agentSchemaPath: string;
+};
+
+export type StudioWorkspaceSettingsPatch = {
+  sandboxRootDir?: string | null;
+  agentSchemaPath?: string | null;
+};
+
 export type FocusFilter = "all" | "running" | "approvals";
 export type StudioViewMode = "focused";
 
@@ -136,6 +146,7 @@ export type StandupJiraConfigPublic = Omit<StandupJiraConfig, "apiToken"> & {
 export type StudioSettings = {
   version: 1;
   gateway: StudioGatewaySettings | null;
+  workspace?: StudioWorkspaceSettings;
   focused: Record<string, StudioFocusedPreference>;
   avatars: Record<string, StudioAgentAvatars>;
   deskAssignments: Record<string, StudioDeskAssignments>;
@@ -153,6 +164,7 @@ export type StudioSettingsPublic = Omit<StudioSettings, "gateway" | "office" | "
 
 export type StudioSettingsPatch = {
   gateway?: StudioGatewaySettingsPatch | null;
+  workspace?: StudioWorkspaceSettingsPatch | null;
   focused?: Record<string, Partial<StudioFocusedPreference> | null>;
   avatars?: Record<string, Record<string, AgentAvatarProfile | null> | null>;
   deskAssignments?: Record<string, Record<string, string | null> | null>;
@@ -195,6 +207,41 @@ const normalizeGatewayUrl = (value: unknown) => {
 const normalizeGatewayKey = (value: unknown) => {
   const key = coerceString(value);
   return key ? key : null;
+};
+
+const normalizeWorkspacePath = (value: unknown) => coerceString(value);
+
+export const defaultStudioWorkspaceSettings = (): StudioWorkspaceSettings => ({
+  sandboxRootDir: "",
+  agentSchemaPath: "",
+});
+
+const normalizeWorkspaceSettings = (
+  value: unknown,
+  fallback: StudioWorkspaceSettings = defaultStudioWorkspaceSettings()
+): StudioWorkspaceSettings => {
+  if (!isRecord(value)) return fallback;
+  return {
+    sandboxRootDir: normalizeWorkspacePath(value.sandboxRootDir ?? fallback.sandboxRootDir),
+    agentSchemaPath: normalizeWorkspacePath(value.agentSchemaPath ?? fallback.agentSchemaPath),
+  };
+};
+
+const mergeWorkspaceSettings = (
+  current: StudioWorkspaceSettings,
+  patch: StudioWorkspaceSettingsPatch | null
+): StudioWorkspaceSettings => {
+  if (patch === null) return defaultStudioWorkspaceSettings();
+  return {
+    sandboxRootDir:
+      patch.sandboxRootDir === undefined
+        ? current.sandboxRootDir
+        : normalizeWorkspacePath(patch.sandboxRootDir),
+    agentSchemaPath:
+      patch.agentSchemaPath === undefined
+        ? current.agentSchemaPath
+        : normalizeWorkspacePath(patch.agentSchemaPath),
+  };
 };
 
 const normalizeFocusFilter = (
@@ -754,6 +801,7 @@ const normalizeOffice = (value: unknown): Record<string, StudioOfficePreference>
 export const defaultStudioSettings = (): StudioSettings => ({
   version: SETTINGS_VERSION,
   gateway: null,
+  workspace: defaultStudioWorkspaceSettings(),
   focused: {},
   avatars: {},
   deskAssignments: {},
@@ -810,6 +858,7 @@ export const sanitizeStudioSettings = (
 export const normalizeStudioSettings = (raw: unknown): StudioSettings => {
   if (!isRecord(raw)) return defaultStudioSettings();
   const gateway = normalizeGatewaySettings(raw.gateway);
+  const workspace = normalizeWorkspaceSettings(raw.workspace);
   const focused = normalizeFocused(raw.focused);
   const avatars = normalizeAvatars(raw.avatars);
   const deskAssignments = normalizeDeskAssignments(raw.deskAssignments);
@@ -820,6 +869,7 @@ export const normalizeStudioSettings = (raw: unknown): StudioSettings => {
   return {
     version: SETTINGS_VERSION,
     gateway,
+    workspace,
     focused,
     avatars,
     deskAssignments,
@@ -836,6 +886,11 @@ export const mergeStudioSettings = (
 ): StudioSettings => {
   const nextGateway =
     patch.gateway === undefined ? current.gateway : mergeGatewaySettings(current.gateway, patch.gateway);
+  const currentWorkspace = current.workspace ?? defaultStudioWorkspaceSettings();
+  const nextWorkspace =
+    patch.workspace === undefined
+      ? currentWorkspace
+      : mergeWorkspaceSettings(currentWorkspace, patch.workspace);
   const nextFocused = { ...current.focused };
   const nextAvatars = { ...current.avatars };
   const nextDeskAssignments = { ...current.deskAssignments };
@@ -1016,6 +1071,7 @@ export const mergeStudioSettings = (
   return {
     version: SETTINGS_VERSION,
     gateway: nextGateway ?? null,
+    workspace: nextWorkspace,
     focused: nextFocused,
     avatars: nextAvatars,
     deskAssignments: nextDeskAssignments,

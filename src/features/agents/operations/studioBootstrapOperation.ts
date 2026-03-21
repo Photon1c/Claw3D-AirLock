@@ -17,6 +17,16 @@ type GatewayClientLike = {
   call: (method: string, params: unknown) => Promise<unknown>;
 };
 
+export type StudioSchemaAgentEntry = {
+  id: string;
+  name: string;
+  workspaceDir: string;
+  sandbox?: {
+    mode?: "off" | "non-main" | "all";
+    workspaceAccess?: "none" | "ro" | "rw";
+  };
+};
+
 export type StudioBootstrapLoadCommand =
   | { kind: "set-gateway-config-snapshot"; snapshot: GatewayModelPolicySnapshot }
   | { kind: "hydrate-agents"; seeds: AgentStoreSeed[]; initialSelectedAgentId: string | undefined }
@@ -29,20 +39,50 @@ export async function runStudioBootstrapLoadOperation(params: {
   gatewayUrl: string;
   cachedConfigSnapshot: GatewayModelPolicySnapshot | null;
   loadStudioSettings: () => Promise<StudioSettings | StudioSettingsPublic | null>;
+  schemaBootstrap?: {
+    loadEntries: () => Promise<StudioSchemaAgentEntry[]>;
+    createAgent: (entry: StudioSchemaAgentEntry) => Promise<void>;
+  };
   isDisconnectLikeError: (err: unknown) => boolean;
   preferredSelectedAgentId: string | null;
   hasCurrentSelection: boolean;
   logError?: (message: string, error: unknown) => void;
 }): Promise<StudioBootstrapLoadCommand[]> {
   try {
-    const result = await hydrateAgentFleetFromGateway({
-      client: params.client,
-      gatewayUrl: params.gatewayUrl,
-      cachedConfigSnapshot: params.cachedConfigSnapshot,
-      loadStudioSettings: params.loadStudioSettings,
-      isDisconnectLikeError: params.isDisconnectLikeError,
-      logError: params.logError,
-    });
+    const hydrate = () =>
+      hydrateAgentFleetFromGateway({
+        client: params.client,
+        gatewayUrl: params.gatewayUrl,
+        cachedConfigSnapshot: params.cachedConfigSnapshot,
+        loadStudioSettings: params.loadStudioSettings,
+        isDisconnectLikeError: params.isDisconnectLikeError,
+        logError: params.logError,
+      });
+    let result = await hydrate();
+    if (params.schemaBootstrap) {
+      try {
+        const schemaEntries = await params.schemaBootstrap.loadEntries();
+        if (schemaEntries.length > 0) {
+          const existingIds = new Set(result.seeds.map((seed) => seed.agentId.trim()));
+          const existingNames = new Set(result.seeds.map((seed) => seed.name.trim().toLowerCase()));
+          let createdCount = 0;
+          for (const entry of schemaEntries) {
+            const schemaId = entry.id.trim();
+            const schemaName = entry.name.trim();
+            if (!schemaId || !schemaName) continue;
+            if (existingIds.has(schemaId)) continue;
+            if (existingNames.has(schemaName.toLowerCase())) continue;
+            await params.schemaBootstrap.createAgent(entry);
+            createdCount += 1;
+          }
+          if (createdCount > 0) {
+            result = await hydrate();
+          }
+        }
+      } catch (error) {
+        params.logError?.("Failed to bootstrap agents from schema.", error);
+      }
+    }
 
     const selectionIntent = planBootstrapSelection({
       hasCurrentSelection: params.hasCurrentSelection,

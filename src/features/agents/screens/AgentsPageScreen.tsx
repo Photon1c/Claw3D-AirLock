@@ -43,6 +43,7 @@ import {
   readConfigAgentList,
   resolveDefaultConfigAgentId,
   slugifyAgentName,
+  updateGatewayAgentOverrides,
 } from "@/lib/gateway/agentConfig";
 import { buildAvatarDataUrl } from "@/lib/avatars/multiavatar";
 import { createStudioSettingsCoordinator } from "@/lib/studio/coordinator";
@@ -88,6 +89,7 @@ import {
 } from "@/features/agents/operations/agentPermissionsOperation";
 import {
   executeStudioBootstrapLoadCommands,
+  type StudioSchemaAgentEntry,
   executeStudioFocusedPatchCommands,
   executeStudioFocusedPreferenceLoadCommands,
   runStudioBootstrapLoadOperation,
@@ -101,6 +103,7 @@ import {
   executeCreateAgentBootstrapCommands,
   runCreateAgentBootstrapOperation,
 } from "@/features/agents/operations/createAgentBootstrapOperation";
+import { fetchStudioAgentSchema } from "@/lib/studio/agent-schema";
 import {
   buildQueuedMutationBlock,
   isCreateBlockTimedOut,
@@ -226,6 +229,8 @@ const AgentsPageScreen = () => {
     shouldPromptForConnect,
     gatewayUrl,
     token,
+    workspaceRootDir,
+    agentSchemaPath,
     localGatewayDefaults,
     error: gatewayError,
     connect,
@@ -233,6 +238,8 @@ const AgentsPageScreen = () => {
     useLocalGatewayDefaults,
     setGatewayUrl,
     setToken,
+    setWorkspaceRootDir,
+    setAgentSchemaPath,
   } = useGatewayConnection(settingsCoordinator);
   const {
     loaded: voiceRepliesLoaded,
@@ -507,6 +514,34 @@ const AgentsPageScreen = () => {
         gatewayUrl,
         cachedConfigSnapshot: gatewayConfigSnapshot,
         loadStudioSettings,
+        schemaBootstrap: {
+          loadEntries: async () => {
+            const schema = await fetchStudioAgentSchema();
+            return schema.entries;
+          },
+          createAgent: async (entry: StudioSchemaAgentEntry) => {
+            const created = await createGatewayAgent({
+              client,
+              name: entry.name,
+              workspacePath: entry.workspaceDir,
+              workspaceRootDir: workspaceRootDir.trim() || undefined,
+            });
+            if (entry.sandbox?.mode || entry.sandbox?.workspaceAccess) {
+              await updateGatewayAgentOverrides({
+                client,
+                agentId: created.id,
+                overrides: {
+                  sandbox: {
+                    ...(entry.sandbox.mode ? { mode: entry.sandbox.mode } : {}),
+                    ...(entry.sandbox.workspaceAccess
+                      ? { workspaceAccess: entry.sandbox.workspaceAccess }
+                      : {}),
+                  },
+                },
+              });
+            }
+          },
+        },
         isDisconnectLikeError: isGatewayDisconnectLikeError,
         preferredSelectedAgentId: preferredSelectedAgentIdRef.current,
         hasCurrentSelection: Boolean(stateRef.current.selectedAgentId),
@@ -535,6 +570,7 @@ const AgentsPageScreen = () => {
     gatewayConfigSnapshot,
     loadStudioSettings,
     status,
+    workspaceRootDir,
   ]);
 
   const enqueueConfigMutationFromRef = useCallback(
@@ -943,7 +979,11 @@ const AgentsPageScreen = () => {
         {
           enqueueConfigMutation,
           createAgent: async (name, avatarSeed) => {
-            const created = await createGatewayAgent({ client, name });
+            const created = await createGatewayAgent({
+              client,
+              name,
+              workspaceRootDir: workspaceRootDir.trim() || undefined,
+            });
             if (avatarSeed) {
               persistAvatarProfile(
                 created.id,
@@ -1037,6 +1077,7 @@ const AgentsPageScreen = () => {
       refreshGatewayConfigSnapshot,
       setError,
       status,
+      workspaceRootDir,
     ]
   );
 
@@ -1396,10 +1437,14 @@ const AgentsPageScreen = () => {
                   <ConnectionPanel
                     gatewayUrl={gatewayUrl}
                     token={token}
+                    workspaceRootDir={workspaceRootDir}
+                    agentSchemaPath={agentSchemaPath}
                     status={status}
                     error={gatewayError}
                     onGatewayUrlChange={setGatewayUrl}
                     onTokenChange={setToken}
+                    onWorkspaceRootDirChange={setWorkspaceRootDir}
+                    onAgentSchemaPathChange={setAgentSchemaPath}
                     onConnect={() => void connect()}
                     onDisconnect={disconnect}
                     onClose={() => setShowConnectionPanel(false)}
@@ -1410,12 +1455,16 @@ const AgentsPageScreen = () => {
               <GatewayConnectScreen
                 gatewayUrl={gatewayUrl}
                 token={token}
+                workspaceRootDir={workspaceRootDir}
+                agentSchemaPath={agentSchemaPath}
                 localGatewayDefaults={localGatewayDefaults}
                 status={status}
                 error={gatewayError}
                 showApprovalHint={didAttemptGatewayConnect}
                 onGatewayUrlChange={setGatewayUrl}
                 onTokenChange={setToken}
+                onWorkspaceRootDirChange={setWorkspaceRootDir}
+                onAgentSchemaPathChange={setAgentSchemaPath}
                 onUseLocalDefaults={useLocalGatewayDefaults}
                 onConnect={() => void connect()}
               />
@@ -1462,10 +1511,14 @@ const AgentsPageScreen = () => {
                 <ConnectionPanel
                   gatewayUrl={gatewayUrl}
                   token={token}
+                  workspaceRootDir={workspaceRootDir}
+                  agentSchemaPath={agentSchemaPath}
                   status={status}
                   error={gatewayError}
                   onGatewayUrlChange={setGatewayUrl}
                   onTokenChange={setToken}
+                  onWorkspaceRootDirChange={setWorkspaceRootDir}
+                  onAgentSchemaPathChange={setAgentSchemaPath}
                   onConnect={() => void connect()}
                   onDisconnect={disconnect}
                   onClose={() => setShowConnectionPanel(false)}

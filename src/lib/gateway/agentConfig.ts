@@ -376,27 +376,38 @@ const joinPathLike = (dir: string, leaf: string): string => {
 export const createGatewayAgent = async (params: {
   client: GatewayClient;
   name: string;
+  workspaceRootDir?: string;
+  workspacePath?: string;
 }): Promise<ConfigAgentEntry> => {
   const trimmed = params.name.trim();
   if (!trimmed) {
     throw new Error("Agent name is required.");
   }
 
-  const snapshot = await params.client.call<GatewayConfigSnapshot>("config.get", {});
-  const configPath = typeof snapshot.path === "string" ? snapshot.path.trim() : "";
-  if (!configPath) {
-    throw new Error(
-      'Gateway did not return a config path; cannot compute a default workspace for "agents.create".',
-    );
-  }
-  const stateDir = dirnameLike(configPath);
-  if (!stateDir) {
-    throw new Error(
-      `Gateway config path "${configPath}" is missing a directory; cannot compute workspace.`,
-    );
-  }
   const idGuess = slugifyAgentName(trimmed);
-  const workspace = joinPathLike(stateDir, `workspace-${idGuess}`);
+  const explicitWorkspacePath = params.workspacePath?.trim() ?? "";
+  const explicitWorkspaceRoot = params.workspaceRootDir?.trim() ?? "";
+  let workspace = explicitWorkspacePath;
+  if (!workspace) {
+    if (explicitWorkspaceRoot) {
+      workspace = joinPathLike(explicitWorkspaceRoot, idGuess);
+    } else {
+      const snapshot = await params.client.call<GatewayConfigSnapshot>("config.get", {});
+      const configPath = typeof snapshot.path === "string" ? snapshot.path.trim() : "";
+      if (!configPath) {
+        throw new Error(
+          'Gateway did not return a config path; cannot compute a default workspace for "agents.create".',
+        );
+      }
+      const stateDir = dirnameLike(configPath);
+      if (!stateDir) {
+        throw new Error(
+          `Gateway config path "${configPath}" is missing a directory; cannot compute workspace.`,
+        );
+      }
+      workspace = joinPathLike(stateDir, `workspace-${idGuess}`);
+    }
+  }
 
   const result = (await params.client.call("agents.create", {
     name: trimmed,
