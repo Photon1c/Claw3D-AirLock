@@ -19,6 +19,7 @@ Eliminate implicit credential/state inheritance and enforce explicit, isolated c
 ## What was added
 
 - **`OPENCLAW_STATE_DIR`** is now the **only** way to configure state storage — fails explicitly if not set
+- **`OPENCLAW_CONFIG_PATH`** is preserved as an explicit settings-file override (not a fallback)
 - **Sandbox mode** via `AIRLOCK_SANDBOX_MODE=1` (or `CLAW3D_SANDBOX=1`) — uses isolated temp dir at `/tmp/claw3d_sandbox/`, no host state access
 - **Clear error messages** when state dir is not configured
 - **Sandbox-aware path resolution** in all store functions, settings, and media routes
@@ -70,11 +71,18 @@ Confirmed zero remaining references to:
 - `MOLTBOT_STATE_DIR` / `CLAWDBOT_STATE_DIR`
 - Legacy config filenames in implicit resolution
 
-## Usage
+## Configuration model
 
-### Explicit configuration (recommended for production)
+### Primary: `OPENCLAW_STATE_DIR`
+Sets the state root directory. Settings are stored at `<OPENCLAW_STATE_DIR>/claw3d/settings.json`.
 ```bash
 export OPENCLAW_STATE_DIR=/path/to/your/state
+```
+
+### Override: `OPENCLAW_CONFIG_PATH`
+Points directly to a settings file. Takes precedence over `OPENCLAW_STATE_DIR` if both are set. Not a fallback — an explicit override only.
+```bash
+export OPENCLAW_CONFIG_PATH=/path/to/settings.json
 ```
 
 ### Sandbox mode (isolated, no host state access)
@@ -84,6 +92,8 @@ export AIRLOCK_SANDBOX_MODE=1
 export CLAW3D_SANDBOX=1
 # State goes to /tmp/claw3d_sandbox/
 ```
+
+If neither `OPENCLAW_STATE_DIR` nor `OPENCLAW_CONFIG_PATH` is set, the application exits with a clear error. There is no implicit fallback to `~/.openclaw`.
 
 ## Remaining risks
 - `OPENCLAW_PACKAGE_ROOT` is a server-only var; ensure it stays server-side

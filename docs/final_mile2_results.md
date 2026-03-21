@@ -107,5 +107,15 @@ With `OPENCLAW_CONFIG_PATH=/home/sherlockhums/apps/sludge/settings.json` and san
 ## Git commands to push
 
 ```bash
-git add server/studio-settings.js server/index.js server/gateway-proxy.js docs/final_mile2_results.md && git commit -m "fix: wire gateway token from OPENCLAW_CONFIG_PATH to proxy in sandbox mode" && git push origin security/state-and-env-isolation-phase3
+# Stage changes
+git add server/studio-settings.js
+git add server/index.js
+git add server/gateway-proxy.js
+git add docs/final_mile2_results.md
+
+# Commit
+git commit -m "fix: wire gateway token from OPENCLAW_CONFIG_PATH to proxy in sandbox mode"
+
+# Push
+git push origin security/state-and-env-isolation-phase3
 ```

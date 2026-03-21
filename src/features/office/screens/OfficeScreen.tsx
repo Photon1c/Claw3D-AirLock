@@ -1743,10 +1743,31 @@ export function OfficeScreen() {
     dispatch({ type: "selectAgent", agentId: activeQaTestingAgentId });
   }, [activeQaTestingAgentId, dispatch]);
 
+  const lastPhoneCallActiveKeysRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const activeKeys = new Set(
-      Object.values(phoneCallByAgentId).map((request) => request.key),
+    const activeKeysArray = Object.values(phoneCallByAgentId).map(
+      (request) => request.key,
     );
+
+    // No active calls: clear refs and bail without touching state.
+    if (activeKeysArray.length === 0) {
+      promptedPhoneCallKeysRef.current = new Set();
+      preparedPhoneCallKeysRef.current = new Set();
+      spokenPhoneCallKeysRef.current = new Set();
+      lastPhoneCallActiveKeysRef.current = "";
+      return;
+    }
+
+    // Avoid touching state if the active key set is unchanged.
+    const activeKeysSignature = activeKeysArray.slice().sort().join(",");
+    if (lastPhoneCallActiveKeysRef.current === activeKeysSignature) {
+      return;
+    }
+    lastPhoneCallActiveKeysRef.current = activeKeysSignature;
+
+    const activeKeys = new Set(activeKeysArray);
+
     promptedPhoneCallKeysRef.current = new Set(
       [...promptedPhoneCallKeysRef.current].filter((key) => activeKeys.has(key)),
     );
@@ -1756,9 +1777,12 @@ export function OfficeScreen() {
     spokenPhoneCallKeysRef.current = new Set(
       [...spokenPhoneCallKeysRef.current].filter((key) => activeKeys.has(key)),
     );
+
     setPreparedPhoneCallsByAgentId((previous) => {
       const next = Object.fromEntries(
-        Object.entries(previous).filter(([, entry]) => activeKeys.has(entry.requestKey)),
+        Object.entries(previous).filter(([, entry]) =>
+          activeKeys.has(entry.requestKey),
+        ),
       );
       if (
         Object.keys(previous).length === Object.keys(next).length &&
@@ -1909,19 +1933,42 @@ export function OfficeScreen() {
     [dispatch, phoneCallByAgentId],
   );
 
+  const lastTextMessageActiveKeysRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const activeKeys = new Set(
-      Object.values(textMessageByAgentId).map((request) => request.key),
+    const activeKeysArray = Object.values(textMessageByAgentId).map(
+      (request) => request.key,
     );
+
+    // No active messages: clear refs and bail without touching state.
+    if (activeKeysArray.length === 0) {
+      promptedTextMessageKeysRef.current = new Set();
+      preparedTextMessageKeysRef.current = new Set();
+      lastTextMessageActiveKeysRef.current = "";
+      return;
+    }
+
+    // Avoid touching state if the active key set is unchanged.
+    const activeKeysSignature = activeKeysArray.slice().sort().join(",");
+    if (lastTextMessageActiveKeysRef.current === activeKeysSignature) {
+      return;
+    }
+    lastTextMessageActiveKeysRef.current = activeKeysSignature;
+
+    const activeKeys = new Set(activeKeysArray);
+
     promptedTextMessageKeysRef.current = new Set(
       [...promptedTextMessageKeysRef.current].filter((key) => activeKeys.has(key)),
     );
     preparedTextMessageKeysRef.current = new Set(
       [...preparedTextMessageKeysRef.current].filter((key) => activeKeys.has(key)),
     );
+
     setPreparedTextMessagesByAgentId((previous) =>
       Object.fromEntries(
-        Object.entries(previous).filter(([, entry]) => activeKeys.has(entry.requestKey)),
+        Object.entries(previous).filter(([, entry]) =>
+          activeKeys.has(entry.requestKey),
+        ),
       ),
     );
   }, [textMessageByAgentId]);
