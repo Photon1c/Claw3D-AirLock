@@ -5,6 +5,7 @@ import {
   isSandboxMode,
   resolveSandboxDir,
   resolveStateDir,
+  resolveUserPath,
 } from "@/lib/clawdbot/paths";
 import {
   defaultStudioSettings,
@@ -18,20 +19,58 @@ const SETTINGS_DIRNAME = "claw3d";
 const SETTINGS_FILENAME = "settings.json";
 
 export const resolveStudioSettingsPath = (env: NodeJS.ProcessEnv = process.env): string => {
+  const configPath = env.OPENCLAW_CONFIG_PATH?.trim();
+  if (isSandboxMode(env) && configPath) {
+    const resolved = resolveUserPath(configPath);
+    if (fs.existsSync(resolved)) {
+      return resolved;
+    }
+  }
   const base = isSandboxMode(env)
     ? resolveSandboxDir()
     : resolveStateDir(env);
   return path.join(base, SETTINGS_DIRNAME, SETTINGS_FILENAME);
 };
 
+const loadGatewayFromOpenClawConfig = (
+  env: NodeJS.ProcessEnv = process.env,
+): { url: string; token: string } | null => {
+  const configPath = env.OPENCLAW_CONFIG_PATH?.trim();
+  if (!configPath) return null;
+  const resolved = resolveUserPath(configPath);
+  if (!fs.existsSync(resolved)) return null;
+  try {
+    const raw = fs.readFileSync(resolved, "utf8");
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return null;
+    const gateway = (parsed as Record<string, unknown>).gateway;
+    if (!gateway || typeof gateway !== "object") return null;
+    const gw = gateway as Record<string, unknown>;
+    const url = typeof gw.url === "string" ? gw.url.trim() : "";
+    const token = typeof gw.token === "string" ? gw.token.trim() : "";
+    if (!url) return null;
+    return { url, token };
+  } catch {
+    return null;
+  }
+};
+
 export const loadStudioSettings = (env: NodeJS.ProcessEnv = process.env): StudioSettings => {
   const settingsPath = resolveStudioSettingsPath(env);
-  if (!fs.existsSync(settingsPath)) {
-    return defaultStudioSettings();
+  const settings: StudioSettings = fs.existsSync(settingsPath)
+    ? normalizeStudioSettings(JSON.parse(fs.readFileSync(settingsPath, "utf8")) as unknown)
+    : defaultStudioSettings();
+
+  if (isSandboxMode(env) && (!settings.gateway || !settings.gateway.url)) {
+    const gwConfig = loadGatewayFromOpenClawConfig(env);
+    if (gwConfig) {
+      return normalizeStudioSettings({
+        ...settings,
+        gateway: gwConfig,
+      });
+    }
   }
-  const raw = fs.readFileSync(settingsPath, "utf8");
-  const parsed = JSON.parse(raw) as unknown;
-  return normalizeStudioSettings(parsed);
+  return settings;
 };
 
 export const saveStudioSettings = (

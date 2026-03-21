@@ -7,6 +7,7 @@ type GatewayConnectScreenProps = {
   gatewayUrl: string;
   status: GatewayStatus;
   error: string | null;
+  tokenConfigured: boolean;
   showApprovalHint: boolean;
   onGatewayUrlChange: (value: string) => void;
   onConnect: () => void;
@@ -25,6 +26,7 @@ export const GatewayConnectScreen = ({
   gatewayUrl,
   status,
   error,
+  tokenConfigured,
   showApprovalHint,
   onGatewayUrlChange,
   onConnect,
@@ -47,11 +49,15 @@ export const GatewayConnectScreen = ({
     if (status === "connecting") {
       return "Connecting to remote gateway…";
     }
+    const hasUrl = gatewayUrl.trim().length > 0;
+    if (hasUrl && !tokenConfigured) {
+      return "Server-side gateway config missing.";
+    }
     if (isLocal) {
       return "No local gateway found.";
     }
     return "Not connected to a gateway.";
-  }, [isLocal, localPort, status]);
+  }, [gatewayUrl, isLocal, localPort, status, tokenConfigured]);
   const connectDisabled = status === "connecting";
   const connectLabel = connectDisabled ? "Connecting…" : "Connect";
   const statusDotClass =

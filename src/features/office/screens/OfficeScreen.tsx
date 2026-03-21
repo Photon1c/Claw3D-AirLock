@@ -644,6 +644,7 @@ export function OfficeScreen() {
     connect,
     disconnect,
     setGatewayUrl,
+    tokenConfigured,
   } =
     useGatewayConnection(settingsCoordinator);
   const { state, dispatch, hydrateAgents, setError, setLoading } =
@@ -1755,11 +1756,18 @@ export function OfficeScreen() {
     spokenPhoneCallKeysRef.current = new Set(
       [...spokenPhoneCallKeysRef.current].filter((key) => activeKeys.has(key)),
     );
-    setPreparedPhoneCallsByAgentId((previous) =>
-      Object.fromEntries(
+    setPreparedPhoneCallsByAgentId((previous) => {
+      const next = Object.fromEntries(
         Object.entries(previous).filter(([, entry]) => activeKeys.has(entry.requestKey)),
-      ),
-    );
+      );
+      if (
+        Object.keys(previous).length === Object.keys(next).length &&
+        Object.keys(previous).every((key) => previous[key] === next[key])
+      ) {
+        return previous;
+      }
+      return next;
+    });
   }, [phoneCallByAgentId]);
 
   useEffect(() => {
@@ -2666,6 +2674,7 @@ export function OfficeScreen() {
           gatewayUrl={gatewayUrl}
           status={status}
           error={gatewayError}
+          tokenConfigured={tokenConfigured}
           showApprovalHint={didAttemptGatewayConnect}
           onGatewayUrlChange={setGatewayUrl}
           onConnect={() => void connect()}

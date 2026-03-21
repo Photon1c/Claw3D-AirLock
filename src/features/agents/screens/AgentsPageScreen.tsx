@@ -1387,6 +1387,7 @@ const AgentsPageScreen = () => {
                 gatewayUrl={gatewayUrl}
                 status={status}
                 error={gatewayError}
+                tokenConfigured={tokenConfigured}
                 showApprovalHint={didAttemptGatewayConnect}
                 onGatewayUrlChange={setGatewayUrl}
                 onConnect={() => void connect()}
