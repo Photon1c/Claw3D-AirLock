@@ -17,7 +17,7 @@ export const resolveUserPath = (
 
 const SANDBOX_STATE_DIRNAME = "claw3d_sandbox";
 
-const resolveSandboxDir = (): string => {
+export const resolveSandboxDir = (): string => {
   return path.join(os.tmpdir(), SANDBOX_STATE_DIRNAME);
 };
 

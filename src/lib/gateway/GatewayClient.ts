@@ -426,6 +426,7 @@ export type GatewayConnectionState = {
   error: string | null;
   connectPromptReady: boolean;
   shouldPromptForConnect: boolean;
+  tokenConfigured: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
   setGatewayUrl: (value: string) => void;
@@ -515,6 +516,7 @@ export const useGatewayConnection = (
   const [error, setError] = useState<string | null>(null);
   const [connectErrorCode, setConnectErrorCode] = useState<string | null>(null);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [tokenConfigured, setTokenConfigured] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -534,6 +536,8 @@ export const useGatewayConnection = (
           gatewayUrl: nextGatewayUrl.trim(),
         };
         setGatewayUrl(nextGatewayUrl);
+        const isTokenConfigured = "tokenConfigured" in (gateway ?? {}) ? (gateway as { tokenConfigured: boolean }).tokenConfigured : false;
+        setTokenConfigured(isTokenConfigured);
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : "Failed to load gateway settings.";
@@ -688,6 +692,7 @@ export const useGatewayConnection = (
     error,
     connectPromptReady,
     shouldPromptForConnect,
+    tokenConfigured,
     connect,
     disconnect,
     setGatewayUrl,

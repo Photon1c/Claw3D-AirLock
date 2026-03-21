@@ -14,11 +14,10 @@ describe("ConnectionPanel close control", () => {
     render(
       createElement(ConnectionPanel, {
         gatewayUrl: "ws://127.0.0.1:18789",
-        token: "token",
+        tokenConfigured: true,
         status: "disconnected",
         error: null,
         onGatewayUrlChange: vi.fn(),
-        onTokenChange: vi.fn(),
         onConnect: vi.fn(),
         onDisconnect: vi.fn(),
         onClose,
@@ -33,11 +32,10 @@ describe("ConnectionPanel close control", () => {
     render(
       createElement(ConnectionPanel, {
         gatewayUrl: "ws://127.0.0.1:18789",
-        token: "token",
+        tokenConfigured: true,
         status: "disconnected",
         error: null,
         onGatewayUrlChange: vi.fn(),
-        onTokenChange: vi.fn(),
         onConnect: vi.fn(),
         onDisconnect: vi.fn(),
       })
@@ -50,11 +48,10 @@ describe("ConnectionPanel close control", () => {
     const { rerender } = render(
       createElement(ConnectionPanel, {
         gatewayUrl: "ws://127.0.0.1:18789",
-        token: "token",
+        tokenConfigured: true,
         status: "disconnected",
         error: null,
         onGatewayUrlChange: vi.fn(),
-        onTokenChange: vi.fn(),
         onConnect: vi.fn(),
         onDisconnect: vi.fn(),
       })
@@ -67,11 +64,10 @@ describe("ConnectionPanel close control", () => {
     rerender(
       createElement(ConnectionPanel, {
         gatewayUrl: "ws://127.0.0.1:18789",
-        token: "token",
+        tokenConfigured: true,
         status: "connected",
         error: null,
         onGatewayUrlChange: vi.fn(),
-        onTokenChange: vi.fn(),
         onConnect: vi.fn(),
         onDisconnect: vi.fn(),
       })

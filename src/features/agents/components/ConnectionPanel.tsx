@@ -4,11 +4,10 @@ import { resolveGatewayStatusBadgeClass, resolveGatewayStatusLabel } from "./col
 
 type ConnectionPanelProps = {
   gatewayUrl: string;
-  token: string;
+  tokenConfigured: boolean;
   status: GatewayStatus;
   error: string | null;
   onGatewayUrlChange: (value: string) => void;
-  onTokenChange: (value: string) => void;
   onConnect: () => void;
   onDisconnect: () => void;
   onClose?: () => void;
@@ -16,11 +15,10 @@ type ConnectionPanelProps = {
 
 export const ConnectionPanel = ({
   gatewayUrl,
-  token,
+  tokenConfigured,
   status,
   error,
   onGatewayUrlChange,
-  onTokenChange,
   onConnect,
   onDisconnect,
   onClose,
@@ -73,15 +71,14 @@ export const ConnectionPanel = ({
           />
         </label>
         <label className="flex flex-col gap-1 font-mono text-[10px] font-semibold tracking-[0.06em] text-muted-foreground">
-          Upstream token
-          <input
-            className="ui-input h-10 rounded-md px-4 font-sans text-sm text-foreground outline-none"
-            type="password"
-            value={token}
-            onChange={(event) => onTokenChange(event.target.value)}
-            placeholder="gateway token"
-            spellCheck={false}
-          />
+          Token
+          <div className="flex h-10 items-center gap-2 rounded-md bg-muted/30 px-4 font-sans text-sm">
+            {tokenConfigured ? (
+              <span className="text-green-500">Configured</span>
+            ) : (
+              <span className="text-muted-foreground">Not configured</span>
+            )}
+          </div>
         </label>
       </div>
       {error ? (

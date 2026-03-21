@@ -222,6 +222,7 @@ const AgentsPageScreen = () => {
     shouldPromptForConnect,
     gatewayUrl,
     error: gatewayError,
+    tokenConfigured,
     connect,
     disconnect,
     setGatewayUrl,
@@ -1323,7 +1324,6 @@ const AgentsPageScreen = () => {
     (!connectPromptReady ||
       (gatewayUrl.trim().length > 0 &&
         !shouldPromptForConnect &&
-        token.trim().length > 0 &&
         (!didAttemptGatewayConnect || status === "connecting")))
   ) {
     return (
@@ -1372,11 +1372,10 @@ const AgentsPageScreen = () => {
                 <div className="glass-panel w-full !bg-card px-4 py-4 sm:px-6 sm:py-6">
                   <ConnectionPanel
                     gatewayUrl={gatewayUrl}
-                    token={token}
+                    tokenConfigured={tokenConfigured}
                     status={status}
                     error={gatewayError}
                     onGatewayUrlChange={setGatewayUrl}
-                    onTokenChange={setToken}
                     onConnect={() => void connect()}
                     onDisconnect={disconnect}
                     onClose={() => setShowConnectionPanel(false)}
@@ -1434,11 +1433,10 @@ const AgentsPageScreen = () => {
               <div className="glass-panel pointer-events-auto w-full max-w-4xl !bg-card px-4 py-4 sm:px-6 sm:py-6">
                 <ConnectionPanel
                   gatewayUrl={gatewayUrl}
-                  token={token}
+                  tokenConfigured={tokenConfigured}
                   status={status}
                   error={gatewayError}
                   onGatewayUrlChange={setGatewayUrl}
-                  onTokenChange={setToken}
                   onConnect={() => void connect()}
                   onDisconnect={disconnect}
                   onClose={() => setShowConnectionPanel(false)}
