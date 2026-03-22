@@ -1,0 +1,38 @@
+{
+  "custodian": {
+    "model_name": "night-auditor",
+    "provider": "ollama"
+  },
+  "clerk": {
+    "model_name": "physics-assistant",
+    "provider": "ollama"
+  },
+  "specialist": {
+    "model_name": "physics-assistant",
+    "provider": "ollama"
+  },
+  "executive": {
+    "model_name": "physics-assistant",
+    "provider": "ollama"
+  },
+  "office_assistant": {
+    "model_name": "physics-assistant",
+    "provider": "ollama"
+  },
+  "workload_planner": {
+    "model_name": "physics-assistant",
+    "provider": "ollama"
+  },
+  "me_diary": {
+    "model_name": "night-auditor",
+    "provider": "ollama"
+  },
+  "me_assistant": {
+    "model_name": "physics-assistant",
+    "provider": "ollama"
+  },
+  "me_triage": {
+    "model_name": "night-auditor",
+    "provider": "ollama"
+  }
+}

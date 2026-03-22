@@ -1,0 +1,50 @@
+{
+  "name": "pixel-office",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "build:server": "tsc server/index.ts --outDir server/dist --esModuleInterop --module NodeNext --moduleResolution NodeNext --target ES2020",
+    "dev:server": "npx tsx server/index.ts",
+    "start": "npm run build && node server/dist/index.js",
+    "live": "npm run build && npm run dev:server",
+    "pixel_memory": "tsx src/pixel_memory/cli.ts",
+    "pixel_memory:migrate": "npm run pixel_memory -- migrate",
+    "db:smoke-test": "tsx scripts/db-smoke-test.ts",
+    "debug-chat": "tsx scripts/debug-chat.ts",
+    "test": "playwright test",
+    "test:cooler": "tsx server/conversation/tests/integration.test.ts",
+    "test:cooler:run": "tsx server/conversation/tests/run.ts",
+    "time:demo": "tsx scripts/time_tasks_demo.ts",
+    "test:scrum": "tsx server/scrum/tests/scrumExporter.test.ts",
+    "test:github": "tsx server/github/tests/safeScrumRepoClient.test.ts",
+    "test:repo": "tsx server/services/tests/repoQuestionHandler.test.ts"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mermaid": "^11.0.0",
+    "mysql2": "^3.11.0",
+    "openai": "^6.22.0",
+    "pg": "^8.12.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "tsx": "^4.19.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3"
+  }
+}

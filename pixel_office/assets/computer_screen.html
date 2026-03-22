@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Agent Terminal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            color: #00ff88;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header Bar */
+        .header {
+            background: rgba(0, 255, 136, 0.1);
+            border-bottom: 2px solid #00ff88;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 255, 136, 0.3);
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff88;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .system-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .agent-list {
+            list-style: none;
+        }
+
+        .agent-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 3px solid #00ff88;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .agent-item:hover {
+            background: rgba(0, 255, 136, 0.2);
+            transform: translateX(5px);
+        }
+
+        .agent-name {
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .agent-status {
+            font-size: 11px;
+            color: #00ccff;
+            margin-top: 3px;
+        }
+
+        /* Terminal Area */
+        .terminal-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .terminal {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.6;
+            box-shadow: inset 0 0 20px rgba(0, 255, 136, 0.1);
+        }
+
+        .terminal-line {
+            margin-bottom: 8px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .timestamp {
+            color: #00ccff;
+            opacity: 0.7;
+        }
+
+        .log-info { color: #00ff88; }
+        .log-warning { color: #ffaa00; }
+        .log-error { color: #ff4444; }
+        .log-success { color: #44ff44; }
+
+        /* Input Area */
+        .input-area {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(0, 255, 136, 0.4);
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .prompt {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input[type="text"]::placeholder {
+            color: rgba(0, 255, 136, 0.4);
+        }
+
+        .send-btn {
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 8px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .send-btn:hover {
+            background: rgba(0, 255, 136, 0.3);
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 136, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 255, 136, 0.7);
+        }
+
+        /* Cursor blink */
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 14px;
+            background: #00ff88;
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Matrix rain effect (subtle background) */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.1;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <canvas class="matrix-bg" id="matrixCanvas"></canvas>
+
+    <div class="header">
+        <div class="logo">
+            <div class="status-indicator"></div>
+            <span>⚡ LLM Agent System</span>
+        </div>
+        <div class="system-stats">
+            <div class="stat">
+                <span>CPU:</span>
+                <span id="cpu">42%</span>
+            </div>
+            <div class="stat">
+                <span>MEM:</span>
+                <span id="mem">1.2GB</span>
+            </div>
+            <div class="stat">
+                <span>AGENTS:</span>
+                <span id="agentCount">3</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="sidebar">
+            <h3>▸ Active Agents</h3>
+            <ul class="agent-list">
+                <li class="agent-item">
+                    <div class="agent-name">Agent-Alpha</div>
+                    <div class="agent-status">● Processing task...</div>
+                </li>
+                <li class="agent-item">
+                    <div class="agent-name">Agent-Beta</div>
+                    <div class="agent-status">● Idle</div>
+                </li>
+                <li class="agent-item">
+                    <div class="agent-name">Agent-Gamma</div>
+                    <div class="agent-status">● Analyzing data...</div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="terminal-area">
+            <div class="terminal" id="terminal">
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:15]</span>
+                    <span class="log-success">System initialized successfully</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:16]</span>
+                    <span class="log-info">Loading agent modules...</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:17]</span>
+                    <span class="log-info">Agent-Alpha: Connected</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:18]</span>
+                    <span class="log-info">Agent-Beta: Connected</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:19]</span>
+                    <span class="log-info">Agent-Gamma: Connected</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:20]</span>
+                    <span class="log-success">All systems operational</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="timestamp">[09:42:21]</span>
+                    <span class="log-info">Awaiting instructions<span class="cursor"></span></span>
+                </div>
+            </div>
+
+            <div class="input-area">
+                <span class="prompt">></span>
+                <input type="text" id="commandInput" placeholder="Enter command..." />
+                <button class="send-btn" onclick="sendCommand()">SEND</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Matrix rain effect
+        const canvas = document.getElementById('matrixCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 14, 39, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#00ff88';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        // Terminal functionality
+        const terminal = document.getElementById('terminal');
+        const input = document.getElementById('commandInput');
+
+        function addLog(message, type = 'info') {
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `
+                <span class="timestamp">[${time}]</span>
+                <span class="log-${type}">${message}</span>
+            `;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function sendCommand() {
+            const command = input.value.trim();
+            if (!command) return;
+
+            addLog(`> ${command}`, 'info');
+            input.value = '';
+
+            // Simulate command processing
+            setTimeout(() => {
+                if (command.toLowerCase().includes('status')) {
+                    addLog('All agents operational. System running normally.', 'success');
+                } else if (command.toLowerCase().includes('help')) {
+                    addLog('Available commands: status, help, deploy, analyze, clear', 'info');
+                } else if (command.toLowerCase().includes('clear')) {
+                    terminal.innerHTML = '';
+                } else {
+                    addLog(`Processing command: ${command}...`, 'info');
+                    setTimeout(() => {
+                        addLog('Command executed successfully', 'success');
+                    }, 1000);
+                }
+            }, 300);
+        }
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendCommand();
+            }
+        });
+
+        // Update stats randomly
+        setInterval(() => {
+            document.getElementById('cpu').textContent = Math.floor(Math.random() * 40 + 30) + '%';
+            document.getElementById('mem').textContent = (Math.random() * 0.5 + 1).toFixed(1) + 'GB';
+        }, 3000);
+
+        // Simulate agent activity
+        const agentStatuses = ['Processing task...', 'Idle', 'Analyzing data...', 'Computing...', 'Waiting...'];
+        setInterval(() => {
+            const items = document.querySelectorAll('.agent-status');
+            items.forEach(item => {
+                item.textContent = '● ' + agentStatuses[Math.floor(Math.random() * agentStatuses.length)];
+            });
+        }, 5000);
+
+        // Random terminal messages
+        setInterval(() => {
+            const messages = [
+                'Background process completed',
+                'Data sync in progress...',
+                'Cache cleared',
+                'Memory optimized',
+                'Connection stable'
+            ];
+            if (Math.random() > 0.7) {
+                addLog(messages[Math.floor(Math.random() * messages.length)], 'info');
+            }
+        }, 8000);
+
+        // Resize canvas on window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+    </script>
+</body>
+</html>

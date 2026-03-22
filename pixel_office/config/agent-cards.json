@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "app": "pixel_office",
+  "agents": [
+    {
+      "id": "frontdesk",
+      "name": "FrontDesk",
+      "description": "Receptionist agent handling initial visitor intake and task routing",
+      "tags": ["office", "reception", "intake"],
+      "role": "receptionist",
+      "persona": "Friendly receptionist who greets visitors and creates intake packets",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "ironclaw",
+      "name": "IronClaw",
+      "description": "Custodian agent managing office cleanliness and maintenance",
+      "tags": ["office", "custodian", "maintenance"],
+      "role": "custodian",
+      "persona": "Diligent custodian keeping the office running smoothly",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "night-auditor",
+      "models": {
+        "primary": {
+          "name": "night-auditor",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "zeroclaw",
+      "name": "ZeroClaw",
+      "description": "Specialist agent for technical analysis and problem-solving",
+      "tags": ["office", "specialist", "technical"],
+      "role": "specialist",
+      "persona": "Technical specialist with deep analytical capabilities",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "hermitclaw",
+      "name": "HermitClaw",
+      "description": "Archivist agent managing knowledge records and documentation",
+      "tags": ["office", "archivist", "records"],
+      "role": "archivist",
+      "persona": "Quiet archivist maintaining office records and knowledge base",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "openclaw",
+      "name": "OpenClaw",
+      "description": "Clerk agent handling administrative tasks and documentation",
+      "tags": ["office", "clerk", "admin"],
+      "role": "clerk",
+      "persona": "Efficient clerk managing paperwork and administrative flow",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "leslieclaw",
+      "name": "LeslieClaw",
+      "description": "Executive agent for high-level decision making and approvals",
+      "tags": ["office", "executive", "management"],
+      "role": "executive",
+      "persona": "Decisive executive handling approvals and strategic decisions",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "sherlobster",
+      "name": "Sherlobster",
+      "description": "Clerk agent assisting with general office operations",
+      "tags": ["office", "clerk", "operations"],
+      "role": "clerk",
+      "persona": "Helpful clerk supporting daily office operations",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "hercule-prawnro",
+      "name": "Hercule Prawnro",
+      "description": "Specialist agent for complex problem resolution",
+      "tags": ["office", "specialist", "resolution"],
+      "role": "specialist",
+      "persona": "Expert specialist tackling complex challenges",
+      "allowedProviders": ["ollama", "openai"],
+      "defaultModel": "physics-assistant",
+      "models": {
+        "primary": {
+          "name": "physics-assistant",
+          "provider": "ollama",
+          "endpoint": "http://127.0.0.1:11434/v1/chat/completions"
+        },
+        "fallback": {
+          "name": "gpt-4.1-mini",
+          "provider": "openai"
+        }
+      },
+      "status": "active"
+    }
+  ]
+}
