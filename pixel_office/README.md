@@ -34,6 +34,24 @@ npm run live  # builds and starts backend server
 
 Open http://localhost:5173 in your browser.
 
+## Claw3D bridge (Pixel Office as backend)
+
+Pixel Office exposes a narrow 3D bridge contract so Claw3D can run against Pixel Office
+without directly calling OpenClaw APIs:
+
+- `POST /api/3d/session` - create/start a 3D session using current Pixel Office context
+- `POST /api/3d/event` - ingest 3D interaction/user events
+- `GET /api/3d/state` - return current 3D simulation/narrative state
+
+The sidebar includes a **Go 3D** button that:
+1. creates a Pixel Office 3D session via `/api/3d/session`,
+2. records a click event via `/api/3d/event`,
+3. opens Claw3D with a launch URL that points back to Pixel Office endpoints.
+
+Optional env:
+
+- `CLAW3D_URL` (default: `http://localhost:3000`) - base URL used for launch links.
+
 ## Running Tests
 
 ```bash

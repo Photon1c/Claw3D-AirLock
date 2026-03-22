@@ -99,6 +99,151 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---------------------------------------------------------------------------
+// Pixel Office <-> Claw3D bridge contract
+// Claw3D should only consume these APIs when running against Pixel Office.
+// ---------------------------------------------------------------------------
+
+app.post("/api/3d/session", async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as {
+      source?: unknown;
+      actorId?: unknown;
+      ui?: unknown;
+      taskId?: unknown;
+    };
+    const source = typeof body.source === "string" && body.source.trim() ? body.source.trim() : "pixeloffice";
+    const actorId = typeof body.actorId === "string" && body.actorId.trim() ? body.actorId.trim() : null;
+    const ui = body.ui && typeof body.ui === "object" && !Array.isArray(body.ui)
+      ? (body.ui as Record<string, unknown>)
+      : {};
+    const taskId = typeof body.taskId === "number" && Number.isFinite(body.taskId)
+      ? body.taskId
+      : null;
+    const activeSession = await sessions.getActive();
+    const now = new Date().toISOString();
+    const sessionId = createThreeDId("px3d");
+    const record: ThreeDSessionRecord = {
+      id: sessionId,
+      createdAt: now,
+      updatedAt: now,
+      status: "active",
+      context: {
+        source,
+        actorId,
+        activeSessionId: activeSession?.id ?? null,
+        activeTaskId: taskId ?? activeSession?.task_id ?? null,
+        ui,
+      },
+      simulation: {
+        phase: "idle",
+        activeZone: null,
+        lastInteraction: null,
+        eventCount: 0,
+      },
+      events: [],
+    };
+    threeDSessions.set(sessionId, record);
+
+    const backendBaseUrl = resolveBackendBaseUrl(req);
+    const claw3dBaseUrl = (process.env.CLAW3D_URL || "http://localhost:3000").trim();
+    const stateUrl = `${backendBaseUrl}/api/3d/state?sessionId=${encodeURIComponent(sessionId)}`;
+    const eventUrl = `${backendBaseUrl}/api/3d/event`;
+    const launchUrl = `${claw3dBaseUrl}/?backend=pixeloffice&sessionId=${encodeURIComponent(sessionId)}&stateUrl=${encodeURIComponent(stateUrl)}&eventUrl=${encodeURIComponent(eventUrl)}`;
+
+    res.json({
+      ok: true,
+      ...serializeThreeDSession(record),
+      backend: {
+        baseUrl: backendBaseUrl,
+        sessionEndpoint: `${backendBaseUrl}/api/3d/session`,
+        eventEndpoint: eventUrl,
+        stateEndpoint: stateUrl,
+      },
+      claw3d: {
+        launchUrl,
+      },
+    });
+  } catch (error: any) {
+    console.error("3D session create error:", error);
+    res.status(500).json({ ok: false, error: error?.message || "Failed to create 3D session." });
+  }
+});
+
+app.post("/api/3d/event", async (req, res) => {
+  try {
+    const body = (req.body ?? {}) as {
+      sessionId?: unknown;
+      eventType?: unknown;
+      actorId?: unknown;
+      payload?: unknown;
+    };
+    const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+    if (!sessionId) {
+      return res.status(400).json({ ok: false, error: "sessionId is required." });
+    }
+    const eventType = typeof body.eventType === "string" && body.eventType.trim()
+      ? body.eventType.trim()
+      : "ui.event";
+    const actorId = typeof body.actorId === "string" && body.actorId.trim() ? body.actorId.trim() : null;
+    const payload = body.payload && typeof body.payload === "object" && !Array.isArray(body.payload)
+      ? (body.payload as Record<string, unknown>)
+      : {};
+    const record = threeDSessions.get(sessionId);
+    if (!record) {
+      return res.status(404).json({ ok: false, error: `Unknown 3D session: ${sessionId}` });
+    }
+    const event: ThreeDSessionEvent = {
+      id: createThreeDId("ev"),
+      timestamp: new Date().toISOString(),
+      eventType,
+      actorId,
+      payload,
+    };
+    record.events.push(event);
+    record.simulation = updateThreeDSimulationFromEvent(record.simulation, eventType, payload);
+    if (eventType === "session.close") {
+      record.status = "closed";
+    }
+    record.updatedAt = event.timestamp;
+    threeDSessions.set(sessionId, record);
+    res.json({ ok: true, session: serializeThreeDSession(record) });
+  } catch (error: any) {
+    console.error("3D event error:", error);
+    res.status(500).json({ ok: false, error: error?.message || "Failed to process 3D event." });
+  }
+});
+
+app.get("/api/3d/state", async (req, res) => {
+  try {
+    const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId.trim() : "";
+    let record: ThreeDSessionRecord | null = null;
+    if (sessionId) {
+      record = threeDSessions.get(sessionId) ?? null;
+    } else if (threeDSessions.size > 0) {
+      const all = Array.from(threeDSessions.values()).sort((a, b) =>
+        a.updatedAt > b.updatedAt ? -1 : 1
+      );
+      record = all[0] ?? null;
+    }
+    if (!record) {
+      return res.status(404).json({ ok: false, error: "No 3D session found." });
+    }
+    const activeSession = await sessions.getActive();
+    res.json({
+      ok: true,
+      session: serializeThreeDSession(record),
+      pixelOffice: {
+        activeSessionId: activeSession?.id ?? null,
+        activeTaskId: activeSession?.task_id ?? null,
+      },
+    });
+  } catch (error: any) {
+    console.error("3D state error:", error);
+    res.status(500).json({ ok: false, error: error?.message || "Failed to read 3D state." });
+  }
+});
+
 // Cooler Talk API Routes
 app.post("/api/rooms/:location/cooler/run-turn", async (req, res) => {
   try {
@@ -1902,6 +2047,85 @@ interface WorkflowTask {
 
 const workflowTasks: Map<string, WorkflowTask> = new Map();
 
+type ThreeDSessionEvent = {
+  id: string;
+  timestamp: string;
+  eventType: string;
+  actorId: string | null;
+  payload: Record<string, unknown>;
+};
+
+type ThreeDSessionRecord = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  status: "active" | "closed";
+  context: {
+    source: string;
+    actorId: string | null;
+    activeSessionId: number | null;
+    activeTaskId: number | null;
+    ui: Record<string, unknown>;
+  };
+  simulation: {
+    phase: "idle" | "navigating" | "interacting" | "closed";
+    activeZone: string | null;
+    lastInteraction: string | null;
+    eventCount: number;
+  };
+  events: ThreeDSessionEvent[];
+};
+
+const threeDSessions = new Map<string, ThreeDSessionRecord>();
+
+function createThreeDId(prefix: string): string {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function resolveBackendBaseUrl(req: express.Request): string {
+  const proto = req.header("x-forwarded-proto")?.split(",")[0]?.trim() || req.protocol || "http";
+  const host = req.header("x-forwarded-host") || req.get("host") || `localhost:${PORT}`;
+  return `${proto}://${host}`;
+}
+
+function updateThreeDSimulationFromEvent(
+  simulation: ThreeDSessionRecord["simulation"],
+  eventType: string,
+  payload: Record<string, unknown>
+): ThreeDSessionRecord["simulation"] {
+  const next = { ...simulation, eventCount: simulation.eventCount + 1 };
+  if (eventType === "session.close") {
+    next.phase = "closed";
+    return next;
+  }
+  if (eventType === "movement" || eventType === "zone.enter") {
+    const zoneRaw = payload.zoneId;
+    next.activeZone = typeof zoneRaw === "string" ? zoneRaw : next.activeZone;
+    next.phase = "navigating";
+    return next;
+  }
+  if (eventType === "interaction" || eventType === "ui.interaction") {
+    const interactionRaw = payload.kind;
+    next.lastInteraction =
+      typeof interactionRaw === "string" ? interactionRaw : next.lastInteraction;
+    next.phase = "interacting";
+    return next;
+  }
+  return next;
+}
+
+function serializeThreeDSession(record: ThreeDSessionRecord) {
+  return {
+    sessionId: record.id,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+    status: record.status,
+    context: record.context,
+    simulation: record.simulation,
+    events: record.events,
+  };
+}
+
 function generateTaskId(): string {
   return `task_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
@@ -2339,10 +2563,8 @@ app.get("/api/workflow/health", (req, res) => {
 import { 
   isRepoQuestion, 
   handleRepoQuestion, 
-  formatAnswerForOffice,
-  type RepoQuestionResult 
+  formatAnswerForOffice
 } from "./services/repoQuestionHandler.js";
-import { tasksV2 } from "../src/pixel_memory/index.js";
 
 app.post("/api/repo/ask", async (req, res) => {
   try {

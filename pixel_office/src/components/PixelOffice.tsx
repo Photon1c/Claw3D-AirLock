@@ -59,6 +59,15 @@ interface PixelOfficeProps {
   config?: Partial<DashboardConfig>;
 }
 
+type ThreeDSessionCreateResponse = {
+  ok?: boolean;
+  sessionId?: string;
+  claw3d?: {
+    launchUrl?: string;
+  };
+  error?: string;
+};
+
 export default function PixelOffice({ config = {} }: PixelOfficeProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -78,6 +87,10 @@ export default function PixelOffice({ config = {} }: PixelOfficeProps) {
   const [showTimeTasks, setShowTimeTasks] = useState<boolean>(false);
   const [showScrum, setShowScrum] = useState<boolean>(false);
   const [showChat, setShowChat] = useState<boolean>(false);
+  const [go3dBusy, setGo3dBusy] = useState<boolean>(false);
+  const [go3dSessionId, setGo3dSessionId] = useState<string | null>(null);
+  const [go3dLaunchUrl, setGo3dLaunchUrl] = useState<string | null>(null);
+  const [go3dStatus, setGo3dStatus] = useState<string | null>(null);
   const [zoneActivity, setZoneActivity] = useState<Map<string, ZoneActivity>>(new Map());
   const [, setActiveConversationZone] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([
@@ -449,6 +462,64 @@ export default function PixelOffice({ config = {} }: PixelOfficeProps) {
   const deleteTask = (taskId: string) => {
     setTasks(prev => prev.filter(t => t.id !== taskId));
   };
+
+  const handleGo3D = useCallback(async () => {
+    setGo3dBusy(true);
+    setGo3dStatus("Creating Pixel Office 3D session...");
+    try {
+      const activeTask = tasks.find((task) => task.status === "in_progress");
+      const maybeTaskId = activeTask?.id ? Number.parseInt(activeTask.id, 10) : Number.NaN;
+      const taskId = Number.isFinite(maybeTaskId) ? maybeTaskId : undefined;
+      const response = await fetch("/api/3d/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "pixeloffice-ui",
+          actorId: selectedAgent?.id ?? null,
+          taskId,
+          ui: {
+            selectedAgentId: selectedAgent?.id ?? null,
+            showScrum,
+            showChat,
+            showTimeTasks,
+          },
+        }),
+      });
+      const payload = (await response.json()) as ThreeDSessionCreateResponse;
+      if (!response.ok || !payload.sessionId) {
+        throw new Error(payload.error || "Failed to create 3D session.");
+      }
+      setGo3dSessionId(payload.sessionId);
+      const launchUrl = payload.claw3d?.launchUrl?.trim() || null;
+      setGo3dLaunchUrl(launchUrl);
+      setGo3dStatus(`3D session ready: ${payload.sessionId}`);
+      await fetch("/api/3d/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: payload.sessionId,
+          eventType: "ui.go3d.clicked",
+          actorId: selectedAgent?.id ?? null,
+          payload: {
+            source: "pixeloffice-ui",
+          },
+        }),
+      });
+      if (launchUrl) {
+        const popup = window.open(launchUrl, "_blank", "noopener,noreferrer");
+        if (!popup) {
+          setGo3dStatus(
+            `3D session created (${payload.sessionId}). Popup blocked — open the launch URL below.`
+          );
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to launch 3D view.";
+      setGo3dStatus(`Go 3D failed: ${message}`);
+    } finally {
+      setGo3dBusy(false);
+    }
+  }, [selectedAgent?.id, showChat, showScrum, showTimeTasks, tasks]);
 
   if (showGenealogyLab) {
     return <GenealogyLab onNavigate={() => setShowGenealogyLab(false)} />;
@@ -870,6 +941,41 @@ export default function PixelOffice({ config = {} }: PixelOfficeProps) {
             >
               Test SCRUM
             </button>
+          </div>
+          <div style={{ marginBottom: "16px" }}>
+            <button
+              id="go3d-btn"
+              style={{
+                ...styles.paramsToggle,
+                marginLeft: "0px",
+                background: go3dBusy ? "#2d3f52" : "#3f8cff",
+              }}
+              onClick={() => {
+                void handleGo3D();
+              }}
+              disabled={go3dBusy}
+              title="Create a Pixel Office 3D session and open Claw3D"
+            >
+              {go3dBusy ? "Launching 3D..." : "Go 3D"}
+            </button>
+            {go3dStatus ? (
+              <div style={{ marginTop: "8px", fontSize: "12px", color: "#9bb8ff" }}>{go3dStatus}</div>
+            ) : null}
+            {go3dSessionId ? (
+              <div style={{ marginTop: "4px", fontSize: "11px", color: "#7d89a3" }}>
+                Session: {go3dSessionId}
+              </div>
+            ) : null}
+            {go3dLaunchUrl ? (
+              <a
+                href={go3dLaunchUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ marginTop: "6px", display: "inline-block", fontSize: "11px", color: "#7fd0ff" }}
+              >
+                Open Claw3D manually
+              </a>
+            ) : null}
           </div>
           {showParams && (
            <Dashboard
