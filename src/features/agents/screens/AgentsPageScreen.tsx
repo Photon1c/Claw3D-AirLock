@@ -1279,7 +1279,12 @@ const AgentsPageScreen = () => {
       setTimeout: (fn, delayMs) => window.setTimeout(fn, delayMs),
       clearTimeout: (id) => window.clearTimeout(id),
       isDisconnectLikeError: isGatewayDisconnectLikeError,
-      logWarn: (message, meta) => console.warn(message, meta),
+      logWarn: (message, meta) => {
+        if (message === "No thinking trace extracted from chat event.") {
+          return;
+        }
+        console.warn(message, meta);
+      },
       shouldSuppressRunAbortedLine: ({ agentId, runId, stopReason }) => {
         if (stopReason !== "rpc") return false;
         const normalizedRunId = runId?.trim() ?? "";

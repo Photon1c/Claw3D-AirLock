@@ -171,7 +171,7 @@ describe("AgentBrainPanel", () => {
     expect(filesByAgent["agent-1"]["AGENTS.md"]).toBe("alpha directives updated");
   });
 
-  it("calls_cancel_without_writing_files", async () => {
+  it("invokes_cancel_callback_without_writing_files", async () => {
     const { client, calls } = createMockClient();
     const agents = [createAgent("agent-1", "Alpha", "session-1")];
     const onCancel = vi.fn();
@@ -199,7 +199,7 @@ describe("AgentBrainPanel", () => {
     expect(calls.some((entry) => entry.method === "agents.files.set")).toBe(false);
   });
 
-  it("does_not_render_legacy_name_editor_controls", async () => {
+  it("does_not_render_name_editor_in_personality_panel", async () => {
     const { client } = createMockClient();
     const agents = [createAgent("agent-1", "Alpha", "session-1")];
 

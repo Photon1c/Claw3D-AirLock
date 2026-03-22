@@ -113,7 +113,7 @@ export const AgentBrainPanel = ({
 
   const renderMarkdownEditor = useCallback(
     (name: Exclude<AgentFileName, "IDENTITY.md">) => (
-      <AgentBrainPanelSection title={AGENT_FILE_META[name].title}>
+      <AgentBrainPanelSection key={name} title={AGENT_FILE_META[name].title}>
         <div className="text-xs text-muted-foreground">{AGENT_FILE_META[name].hint}</div>
         <textarea
           aria-label={AGENT_FILE_META[name].title}
@@ -132,7 +132,10 @@ export const AgentBrainPanel = ({
 
   const renderIdentityEditor = useCallback(
     () => (
-      <section className="space-y-3 border-t border-border/55 pt-8 first:border-t-0 first:pt-0">
+      <section
+        key="IDENTITY.md"
+        className="space-y-3 border-t border-border/55 pt-8 first:border-t-0 first:pt-0"
+      >
         <h3 className="text-sm font-medium text-foreground">{AGENT_FILE_META["IDENTITY.md"].title}</h3>
         <div className="text-xs text-muted-foreground">
           {AGENT_FILE_META["IDENTITY.md"].hint}
