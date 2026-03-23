@@ -120,7 +120,7 @@ app.post("/api/3d/session", async (req, res) => {
     const taskId = typeof body.taskId === "number" && Number.isFinite(body.taskId)
       ? body.taskId
       : null;
-    const activeSession = await sessions.getActive();
+    const activeSession = await getActivePixelSessionFor3dContext();
     const now = new Date().toISOString();
     const sessionId = createThreeDId("px3d");
     const record: ThreeDSessionRecord = {
@@ -229,7 +229,7 @@ app.get("/api/3d/state", async (req, res) => {
     if (!record) {
       return res.status(404).json({ ok: false, error: "No 3D session found." });
     }
-    const activeSession = await sessions.getActive();
+    const activeSession = await getActivePixelSessionFor3dContext();
     res.json({
       ok: true,
       session: serializeThreeDSession(record),
@@ -2124,6 +2124,16 @@ function serializeThreeDSession(record: ThreeDSessionRecord) {
     simulation: record.simulation,
     events: record.events,
   };
+}
+
+async function getActivePixelSessionFor3dContext(): Promise<{ id: number; task_id: number | null } | null> {
+  try {
+    return await sessions.getActive();
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(`[3D bridge] Continuing without pixel_memory session context: ${reason}`);
+    return null;
+  }
 }
 
 function generateTaskId(): string {
