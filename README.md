@@ -150,8 +150,9 @@ Alternative with SSH:
 
 Important runtime paths:
 
-- OpenClaw config: `~/.openclaw/openclaw.json`
-- Studio settings: `~/.openclaw/claw3d/settings.json`
+- Studio state root (default): `~/.claw3d`
+- Studio settings: `~/.claw3d/claw3d/settings.json`
+- Optional OpenClaw config import path (legacy/local convenience): `~/.openclaw/openclaw.json`
 
 Common environment variables:
 
@@ -162,6 +163,14 @@ Common environment variables:
 - `OPENCLAW_STATE_DIR` and `OPENCLAW_CONFIG_PATH` override the default OpenClaw paths.
 - `OPENCLAW_GATEWAY_SSH_TARGET`, `OPENCLAW_GATEWAY_SSH_USER`, `OPENCLAW_GATEWAY_SSH_PORT`, and `OPENCLAW_GATEWAY_SSH_STRICT_HOST_KEY_CHECKING` support advanced gateway-host operations over SSH when needed.
 - `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, and `ELEVENLABS_MODEL_ID` enable voice reply integration.
+
+### Sandbox workspace + schema agent bootstrap
+
+Studio can load agent definitions from a JSON schema and bootstrap missing agents:
+
+- Configure **Sandbox workspace root** and **Agent schema path** in the connect/connection UI.
+- Schema path is sandboxed: it must resolve inside the configured workspace root.
+- On load, Studio reads `/api/studio/agent-schema` and can create missing agents from that schema.
 
 See [`.env.example`](.env.example) for the full local development template.
 

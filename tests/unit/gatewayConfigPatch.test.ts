@@ -65,6 +65,30 @@ describe("gateway agent helpers", () => {
     expect(entry.name).toBe("My Project");
   });
 
+  it("uses configured workspace root when provided", async () => {
+    const client = {
+      call: vi.fn(async (method: string, params?: unknown) => {
+        if (method === "agents.create") {
+          expect(params).toEqual({
+            name: "Schema Agent",
+            workspace: "/srv/agents/schema-agent",
+          });
+          return { ok: true, agentId: "schema-agent", name: "Schema Agent" };
+        }
+        throw new Error("unexpected method");
+      }),
+    } as unknown as GatewayClient;
+
+    const entry = await createGatewayAgent({
+      client,
+      name: "Schema Agent",
+      workspaceRootDir: "/srv/agents",
+    });
+    expect(entry).toEqual({ id: "schema-agent", name: "Schema Agent" });
+    expect(client.call).toHaveBeenCalledTimes(1);
+    expect((client.call as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe("agents.create");
+  });
+
   it("returns no-op on deleting a missing agent", async () => {
     const client = {
       call: vi.fn(async (method: string) => {
@@ -101,17 +125,7 @@ describe("gateway agent helpers", () => {
 
   it("fails when create name produces an empty id slug", async () => {
     const client = {
-      call: vi.fn(async (method: string) => {
-        if (method === "config.get") {
-          return {
-            exists: true,
-            hash: "hash-create-empty-slug-1",
-            path: "/Users/test/.openclaw/openclaw.json",
-            config: {
-              agents: { list: [] },
-            },
-          };
-        }
+      call: vi.fn(async () => {
         throw new Error("unexpected method");
       }),
     } as unknown as GatewayClient;
@@ -119,8 +133,7 @@ describe("gateway agent helpers", () => {
     await expect(createGatewayAgent({ client, name: "!!!" })).rejects.toThrow(
       "Name produced an empty folder name."
     );
-    expect(client.call).toHaveBeenCalledTimes(1);
-    expect((client.call as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]).toBe("config.get");
+    expect(client.call).not.toHaveBeenCalled();
   });
 
   it("returns current settings when no heartbeat override exists to remove", async () => {

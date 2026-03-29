@@ -2,8 +2,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const LEGACY_STATE_DIRNAMES = [".clawdbot", ".moltbot"] as const;
-const NEW_STATE_DIRNAME = ".openclaw";
+const PREFERRED_STATE_DIRNAME = ".claw3d";
+const LEGACY_STATE_DIRNAMES = [".openclaw", ".clawdbot", ".moltbot"] as const;
 const CONFIG_FILENAME = "openclaw.json";
 const LEGACY_CONFIG_FILENAMES = ["clawdbot.json", "moltbot.json"] as const;
 
@@ -44,10 +44,10 @@ export const resolveStateDir = (
     env.CLAWDBOT_STATE_DIR?.trim();
   if (override) return resolveUserPath(override, homedir);
   const defaultHome = resolveDefaultHomeDir(homedir);
-  const newDir = path.join(defaultHome, NEW_STATE_DIRNAME);
+  const preferredDir = path.join(defaultHome, PREFERRED_STATE_DIRNAME);
   const legacyDirs = LEGACY_STATE_DIRNAMES.map((dir) => path.join(defaultHome, dir));
-  const hasNew = fs.existsSync(newDir);
-  if (hasNew) return newDir;
+  const hasPreferred = fs.existsSync(preferredDir);
+  if (hasPreferred) return preferredDir;
   const existingLegacy = legacyDirs.find((dir) => {
     try {
       return fs.existsSync(dir);
@@ -55,7 +55,7 @@ export const resolveStateDir = (
       return false;
     }
   });
-  return existingLegacy ?? newDir;
+  return existingLegacy ?? preferredDir;
 };
 
 export const resolveConfigPathCandidates = (
@@ -81,7 +81,7 @@ export const resolveConfigPathCandidates = (
   }
 
   const defaultDirs = [
-    path.join(defaultHome, NEW_STATE_DIRNAME),
+    path.join(defaultHome, PREFERRED_STATE_DIRNAME),
     ...LEGACY_STATE_DIRNAMES.map((dir) => path.join(defaultHome, dir)),
   ];
   for (const dir of defaultDirs) {

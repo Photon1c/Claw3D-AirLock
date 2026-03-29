@@ -5,10 +5,14 @@ import { resolveGatewayStatusBadgeClass, resolveGatewayStatusLabel } from "./col
 type ConnectionPanelProps = {
   gatewayUrl: string;
   token: string;
+  workspaceRootDir: string;
+  agentSchemaPath: string;
   status: GatewayStatus;
   error: string | null;
   onGatewayUrlChange: (value: string) => void;
   onTokenChange: (value: string) => void;
+  onWorkspaceRootDirChange: (value: string) => void;
+  onAgentSchemaPathChange: (value: string) => void;
   onConnect: () => void;
   onDisconnect: () => void;
   onClose?: () => void;
@@ -17,10 +21,14 @@ type ConnectionPanelProps = {
 export const ConnectionPanel = ({
   gatewayUrl,
   token,
+  workspaceRootDir,
+  agentSchemaPath,
   status,
   error,
   onGatewayUrlChange,
   onTokenChange,
+  onWorkspaceRootDirChange,
+  onAgentSchemaPathChange,
   onConnect,
   onDisconnect,
   onClose,
@@ -80,6 +88,30 @@ export const ConnectionPanel = ({
             value={token}
             onChange={(event) => onTokenChange(event.target.value)}
             placeholder="gateway token"
+            spellCheck={false}
+          />
+        </label>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <label className="flex flex-col gap-1 font-mono text-[10px] font-semibold tracking-[0.06em] text-muted-foreground">
+          Sandbox workspace root
+          <input
+            className="ui-input h-10 rounded-md px-4 font-sans text-sm text-foreground outline-none"
+            type="text"
+            value={workspaceRootDir}
+            onChange={(event) => onWorkspaceRootDirChange(event.target.value)}
+            placeholder="~/claw3d-workspace"
+            spellCheck={false}
+          />
+        </label>
+        <label className="flex flex-col gap-1 font-mono text-[10px] font-semibold tracking-[0.06em] text-muted-foreground">
+          Agent schema path
+          <input
+            className="ui-input h-10 rounded-md px-4 font-sans text-sm text-foreground outline-none"
+            type="text"
+            value={agentSchemaPath}
+            onChange={(event) => onAgentSchemaPathChange(event.target.value)}
+            placeholder="agents.schema.json"
             spellCheck={false}
           />
         </label>

@@ -29,7 +29,10 @@ const moveIfExists = (src: string, dest: string, moves: GatewayAgentStateMove[])
   moves.push({ from: src, to: dest });
 };
 
-export const trashAgentStateLocally = (params: { agentId: string }): TrashAgentStateResult => {
+export const trashAgentStateLocally = (params: {
+  agentId: string;
+  workspaceRootDir?: string;
+}): TrashAgentStateResult => {
   const agentId = params.agentId.trim();
   if (!agentId) {
     throw new Error("agentId is required.");
@@ -51,6 +54,14 @@ export const trashAgentStateLocally = (params: { agentId: string }): TrashAgentS
     path.join(trashDir, "workspaces", `workspace-${agentId}`),
     moves
   );
+  const workspaceRootDir = params.workspaceRootDir?.trim() ?? "";
+  if (workspaceRootDir) {
+    moveIfExists(
+      path.join(workspaceRootDir, agentId),
+      path.join(trashDir, "workspaces", agentId),
+      moves
+    );
+  }
   moveIfExists(path.join(base, "agents", agentId), path.join(trashDir, "agents", agentId), moves);
 
   return { trashDir, moved: moves };
@@ -69,6 +80,7 @@ const ensureUnderBase = (base: string, candidate: string) => {
 export const restoreAgentStateLocally = (params: {
   agentId: string;
   trashDir: string;
+  workspaceRootDir?: string;
 }): RestoreAgentStateResult => {
   const agentId = params.agentId.trim();
   const trashDirRaw = params.trashDir.trim();
@@ -107,6 +119,13 @@ export const restoreAgentStateLocally = (params: {
     path.join(resolvedTrashDir, "workspaces", `workspace-${agentId}`),
     path.join(base, `workspace-${agentId}`)
   );
+  const workspaceRootDir = params.workspaceRootDir?.trim() ?? "";
+  if (workspaceRootDir) {
+    restoreIfExists(
+      path.join(resolvedTrashDir, "workspaces", agentId),
+      path.join(workspaceRootDir, agentId)
+    );
+  }
   restoreIfExists(
     path.join(resolvedTrashDir, "agents", agentId),
     path.join(base, "agents", agentId)

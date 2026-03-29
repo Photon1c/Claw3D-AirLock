@@ -2422,7 +2422,12 @@ export function OfficeScreen({
       setTimeout: (fn, delayMs) => window.setTimeout(fn, delayMs),
       clearTimeout: (id) => window.clearTimeout(id),
       isDisconnectLikeError: isGatewayDisconnectLikeError,
-      logWarn: (message, meta) => console.warn(message, meta),
+      logWarn: (message, meta) => {
+        if (message === "No thinking trace extracted from chat event.") {
+          return;
+        }
+        console.warn(message, meta);
+      },
       updateSpecialLatestUpdate: () => {},
     });
 
